@@ -165,7 +165,7 @@ cython_debug/
 
 data/*
 !data/GET_DATA.md
-wandb/*
+wandb/
 
 *.csv
 *.model.keras

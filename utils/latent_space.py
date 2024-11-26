@@ -51,15 +51,15 @@ def apply_tsne(latent_representations, n_components=2):
     latent_2d = tsne.fit_transform(latent_representations)
     return latent_2d
 
-def plot_latent_space(latent_2d, labels_indices, class_indices):
+def plot_latent_space(latent_2d, labels_indices):
     """
     Plot the latent space with class labels.
 
     Parameters:
     latent_2d (np.ndarray): 2D representations of the latent space.
     labels_indices (np.ndarray): Class indices for each image.
-    class_indices (dict): Mapping of class names to class indices.
     """
+    class_indices = {'good': 0, 'anomaly': 1}
     index_to_class = {v: k for k, v in class_indices.items()}
     num_classes = len(class_indices)
 

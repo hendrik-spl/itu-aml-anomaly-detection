@@ -54,7 +54,8 @@ def get_errors_and_labels(autoencoder: Model, generator: ImageDataGenerator, los
         reconstructions = autoencoder.predict(batch_images, verbose=0)
         batch_errors = calculate_error(batch_images, reconstructions, loss_function)
         errors.extend(batch_errors)
-        labels.extend(batch_labels[:, relevant_label_index])
+        labels.extend(batch_labels[:, relevant_label_index]) # this gets the relevant labels with 1 if it's a match for our folder (e.g. 'good') and 0 otherwise
+    labels = [1 - label for label in labels] # invert the labels so that 1 is anomaly and 0 is normal
     return np.array(errors), np.array(labels)
 
 def get_threshold(errors: np.ndarray, percentage: int) -> float:

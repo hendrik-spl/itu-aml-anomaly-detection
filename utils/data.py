@@ -40,8 +40,7 @@ def load_data(category: str, batch_size: int):
         batch_size=batch_size,
         class_mode='input',
         color_mode='rgb',
-        subset='validation',
-        shuffle=False
+        subset='validation'
     )
 
     test_generator = datagen_test.flow_from_directory(

@@ -4,21 +4,24 @@ import matplotlib.patches as mpatches
 from sklearn.manifold import TSNE
 from tensorflow.keras.models import Model
 
-def extract_latent_representations(autoencoder, test_generator, layer_name='bottleneck'):
+def plot_latent_space(autoencoder, test_generator, layer_name='bottleneck', n_components=2):
     """
-    Extract latent representations from the encoder part of an autoencoder.
-    
+    Extract latent representations, apply t-SNE, and plot the latent space with class labels.
+
     Parameters:
     autoencoder (Model): The full autoencoder model.
     test_generator (Sequence): The data generator for test images.
     layer_name (str): The name of the bottleneck layer to extract features from.
-
-    Returns:
-    np.ndarray: Flattened latent representations of the images.
-    np.ndarray: Original image labels.
+    n_components (int): Number of dimensions for t-SNE.
     """
-    encoder = Model(inputs=autoencoder.input, outputs=autoencoder.get_layer(layer_name).output)
+    from sklearn.manifold import TSNE
+    from tensorflow.keras.models import Model
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
 
+    # Extract latent representations
+    encoder = Model(inputs=autoencoder.input, outputs=autoencoder.get_layer(layer_name).output)
     all_images, all_labels = zip(*(next(test_generator) for _ in range(len(test_generator))))
 
     # Concatenate all batches
@@ -32,33 +35,11 @@ def extract_latent_representations(autoencoder, test_generator, layer_name='bott
     latent_representations = encoder.predict(original_images, verbose=0)
     latent_flat = latent_representations.reshape(latent_representations.shape[0], -1)
 
-    return latent_flat, labels_indices
+    # Step 2: Apply t-SNE
+    tsne = TSNE(n_components=n_components, random_state=42)
+    latent_2d = tsne.fit_transform(latent_flat)
 
-def apply_tsne(latent_representations, n_components=2):
-    """
-    Apply t-SNE to reduce dimensionality of latent representations.
-
-    Parameters:
-    latent_representations (np.ndarray): Flattened latent representations of images.
-    n_components (int): Number of dimensions for t-SNE.
-    perplexity (float): Perplexity parameter for t-SNE.
-    n_iter (int): Number of iterations for optimization.
-
-    Returns:
-    np.ndarray: 2D representations of the latent space.
-    """
-    tsne = TSNE(n_components=n_components)
-    latent_2d = tsne.fit_transform(latent_representations)
-    return latent_2d
-
-def plot_latent_space(latent_2d, labels_indices):
-    """
-    Plot the latent space with class labels.
-
-    Parameters:
-    latent_2d (np.ndarray): 2D representations of the latent space.
-    labels_indices (np.ndarray): Class indices for each image.
-    """
+    # Step 3: Plot the latent space
     class_indices = {'good': 0, 'anomaly': 1}
     index_to_class = {v: k for k, v in class_indices.items()}
     num_classes = len(class_indices)

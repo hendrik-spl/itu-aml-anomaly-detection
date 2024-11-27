@@ -9,8 +9,31 @@ import seaborn as sns
 from typing import List, Tuple
 
 # https://medium.com/@majpaw1996/anomaly-detection-in-computer-vision-with-ssim-ae-2d5256ffc06b
-def DSSIM_loss(y_true, y_pred):
-    return 1/2 - tf.image.ssim(y_true, y_pred, 1.0)/2
+def dssim_loss(y_true, y_pred):
+    return 1/2 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, max_val=1.0))/2
+
+def ssim_loss(y_true, y_pred):
+    return 1 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, max_val=1.0))
+
+def ssim_l1_loss(y_true, y_pred, alpha=0.5):
+    """
+        y_true: Ground truth images.
+        y_pred: Predicted images.
+        alpha: Weighting factor for SSIM and L1 loss. 
+               alpha = 0.5 means equal weight for both losses.
+    """    
+    # Compute SSIM loss
+    ssim = tf.image.ssim(y_true, y_pred, 1.0)
+    ssim_loss = 1 - tf.reduce_mean(ssim)
+    
+    # Compute L1 loss
+    l1_loss = tf.reduce_mean(tf.abs(y_true - y_pred))
+    
+    # Combine SSIM and L1 losses
+    combined_loss = alpha * ssim_loss + (1 - alpha) * l1_loss
+    
+    return combined_loss
+
 
 def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_function: str) -> List[float]:
     """
@@ -19,20 +42,35 @@ def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_functi
     Parameters:
     images (np.ndarray): The original images.
     reconstructions (np.ndarray): The reconstructed images.
-    loss_function (str): The loss function to use ('mae' or 'mse').
+    loss_function (str): The loss function to use ('mae', 'mse', 'dssim_loss', 'ssim_loss', 'ssim_l1_loss').
 
     Returns:
-    List[float]: A list of errors.
+    List[float]: A list of errors for each image in the batch.
     """
     if loss_function == 'mae':
-        return np.mean(np.abs(reconstructions - images), axis=(1, 2, 3))
+        return np.mean(np.abs(reconstructions - images), axis=(1, 2, 3)).tolist()
     elif loss_function == 'mse':
-        return np.mean(np.square(reconstructions - images), axis=(1, 2, 3))
-    elif loss_function == 'ssim':
-        ssim_values = DSSIM_loss(images, reconstructions)
+        return np.mean(np.square(reconstructions - images), axis=(1, 2, 3)).tolist()
+    elif loss_function == 'dssim_loss':
+        dssim_values = 1 / 2 - tf.image.ssim(images, reconstructions, max_val=1.0) / 2
+        return dssim_values.numpy().tolist()
+    elif loss_function == 'ssim_loss':
+        ssim_values = 1 - tf.image.ssim(images, reconstructions, max_val=1.0)
         return ssim_values.numpy().tolist()
+    elif loss_function == 'ssim_l1_loss':
+        # Compute SSIM for each image
+        ssim = tf.image.ssim(images, reconstructions, 1.0)
+        ssim_loss = 1 - ssim  # Batch-wise SSIM loss
+        
+        # Compute L1 loss for each image
+        l1_loss = tf.reduce_mean(tf.abs(images - reconstructions), axis=(1, 2, 3))
+        
+        # Combine SSIM and L1 losses
+        combined_loss = 0.5 * ssim_loss + 0.5 * l1_loss
+        return combined_loss.numpy().tolist()
     else:
         raise ValueError(f"Unknown loss function: {loss_function}. Please define a function to calculate the error.")
+
 
 def get_errors_and_labels(autoencoder: Model, generator: ImageDataGenerator, loss_function: str) -> Tuple[np.ndarray, np.ndarray]:
     """

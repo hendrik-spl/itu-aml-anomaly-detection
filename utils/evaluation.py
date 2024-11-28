@@ -3,7 +3,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 import numpy as np
 import tensorflow as tf
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import List, Tuple
@@ -51,13 +51,13 @@ def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_functi
         return np.mean(np.abs(reconstructions - images), axis=(1, 2, 3)).tolist()
     elif loss_function == 'mse':
         return np.mean(np.square(reconstructions - images), axis=(1, 2, 3)).tolist()
-    elif loss_function == 'dssim_loss':
+    elif loss_function == 'dssim':
         dssim_values = 1 / 2 - tf.image.ssim(images, reconstructions, max_val=1.0) / 2
         return dssim_values.numpy().tolist()
-    elif loss_function == 'ssim_loss':
+    elif loss_function == 'ssim':
         ssim_values = 1 - tf.image.ssim(images, reconstructions, max_val=1.0)
         return ssim_values.numpy().tolist()
-    elif loss_function == 'ssim_l1_loss':
+    elif loss_function == 'ssim_l1':
         # Compute SSIM for each image
         ssim = tf.image.ssim(images, reconstructions, 1.0)
         ssim_loss = 1 - ssim  # Batch-wise SSIM loss
@@ -231,6 +231,7 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
         "Frequency",
         f"Threshold at {config.threshold_percentage}th percentile: {threshold:.4f}",
     )
+    print(classification_report(true_labels, predicted_labels, target_names=['Normal', 'Anomaly']))
 
     # Step 10: Plot confusion matrix
     plot_confusion_matrix(conf_matrix, ground_truth_labels, f"Confusion Matrix - Test Set - {config.comment}")

@@ -7,6 +7,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import List, Tuple
+from scipy.stats import gaussian_kde
 
 # https://medium.com/@majpaw1996/anomaly-detection-in-computer-vision-with-ssim-ae-2d5256ffc06b
 def dssim_loss(y_true, y_pred):
@@ -167,7 +168,7 @@ def plot_confusion_matrix(confusion_matrix: np.ndarray, labels: List[str], title
     plt.title(title)
     plt.show()
 
-def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGenerator, test_generator: ImageDataGenerator, config) -> None:
+def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGenerator, test_generator: ImageDataGenerator, config, threshold_type = 'simple') -> None:
     """
     Evaluate the autoencoder model.
 
@@ -235,3 +236,243 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
 
     # Step 10: Plot confusion matrix
     plot_confusion_matrix(conf_matrix, ground_truth_labels, f"Confusion Matrix - Test Set - {config.comment}")
+
+
+def evaluate_autoencoder_with_distribution_threshold(autoencoder: Model, 
+                                                     test_generator: ImageDataGenerator, 
+                                                     threshold_images: np.ndarray, 
+                                                     threshold_labels: np.ndarray, 
+                                                     config) -> None:
+    """
+    Evaluate the autoencoder model using a distribution-based threshold.
+
+    Parameters:
+        autoencoder (Model): The autoencoder model.
+        test_generator (ImageDataGenerator): The test data generator.
+        threshold_images (np.ndarray): Images used for calculating the threshold.
+        threshold_labels (np.ndarray): Labels for the threshold dataset (0 for normal, 1 for anomaly).
+        config: Configuration object containing loss function and other parameters.
+    """
+    ground_truth_labels = [
+        "Normal",  # 0
+        "Anomaly"  # 1
+    ]
+
+    # Step 1: Calculate the optimal threshold using error distributions
+    threshold = get_dist_based_threshold(
+        autoencoder=autoencoder,
+        threshold_images=threshold_images,
+        threshold_labels=np.argmax(threshold_labels, axis=1),  # Convert one-hot to class indices
+        loss_function=config.loss
+    )
+
+    print(f"Optimal Threshold: {threshold}")
+
+    # Step 2: Evaluate on the test set
+    test_errors, true_labels = get_errors_and_labels(
+        autoencoder=autoencoder, 
+        generator=test_generator, 
+        loss_function=config.loss
+    )
+
+    # Step 3: Predict labels based on the threshold
+    predicted_labels = np.where(test_errors > threshold, 1, 0)
+
+    # Step 4: Calculate metrics
+    conf_matrix = confusion_matrix(true_labels, predicted_labels)
+    print(classification_report(true_labels, predicted_labels, target_names=ground_truth_labels))
+
+    # Step 5: Split errors based on the true labels
+    normal_errors = test_errors[true_labels == 0]
+    anomalous_errors = test_errors[true_labels == 1]
+
+    # Step 6: Plot error distributions for normal and anomalous samples
+    plot_double_histogram_with_threshold(
+        normal_errors,
+        anomalous_errors,
+        threshold,
+        f"Reconstruction Error Distribution - Test Set - {config.comment}",
+        "Reconstruction Error",
+        "Frequency",
+        f"Optimal Threshold: {threshold:.4f}"
+    )
+
+    # Step 7: Plot confusion matrix
+    plot_confusion_matrix(conf_matrix, ground_truth_labels, f"Confusion Matrix - Test Set - {config.comment}")
+
+
+def get_dist_based_threshold(autoencoder, threshold_images, threshold_labels, loss_function='mse', num_steps=1000):
+    """
+    Calculate the optimal threshold for separating normal and anomalous images.
+
+    Args:
+        autoencoder: Trained autoencoder model.
+        threshold_images (np.ndarray): Images used for threshold calculation.
+        threshold_labels (np.ndarray): Labels for the threshold images (0 for normal, 1 for anomaly).
+        loss_function (str): Loss function for error calculation ('mse', 'mae').
+        num_steps (int): Number of steps for evaluating KDE overlap.
+
+    Returns:
+        float: The calculated threshold value.
+    """
+    # Step 1: Reconstruct images
+    reconstructed_images = autoencoder.predict(threshold_images)
+
+    # Step 2: Calculate reconstruction errors
+    if loss_function == 'mse':
+        errors = np.mean((threshold_images - reconstructed_images) ** 2, axis=(1, 2, 3))
+    elif loss_function == 'mae':
+        errors = np.mean(np.abs(threshold_images - reconstructed_images), axis=(1, 2, 3))
+    else:
+        raise ValueError(f"Unsupported loss function: {loss_function}")
+
+    # Step 3: Separate errors by label
+    normal_errors = errors[threshold_labels == 0]
+    anomaly_errors = errors[threshold_labels == 1]
+
+    # Step 4: Estimate error distributions using Kernel Density Estimation
+    normal_kde = gaussian_kde(normal_errors)
+    anomaly_kde = gaussian_kde(anomaly_errors)
+
+    # Step 5: Find the threshold that minimizes the overlap between distributions
+    min_error = min(errors)
+    max_error = max(errors)
+    x = np.linspace(min_error, max_error, num_steps)
+    kde_overlap = np.abs(normal_kde(x) - anomaly_kde(x))
+    optimal_threshold_index = np.argmin(kde_overlap)
+    threshold = x[optimal_threshold_index]
+
+    # Step 6: Plot the distributions and threshold
+    plt.figure(figsize=(8, 6))
+    plt.plot(x, normal_kde(x), label='Normal Errors', color='blue')
+    plt.plot(x, anomaly_kde(x), label='Anomaly Errors', color='orange')
+    plt.axvline(threshold, color='red', linestyle='--', label=f'Threshold: {threshold:.4f}')
+    plt.title('Error Distributions with Optimal Threshold')
+    plt.xlabel('Reconstruction Error')
+    plt.ylabel('Density')
+    plt.legend()
+    plt.show()
+
+    return threshold
+
+def get_dist_based_threshold_from_generator(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
+    """
+    Calculate the optimal threshold using a generator for the threshold dataset.
+
+    Args:
+        autoencoder: Trained autoencoder model.
+        threshold_generator (ImageDataGenerator): Generator for the threshold dataset.
+        loss_function (str): Loss function for error calculation ('mse', 'mae').
+        num_steps (int): Number of steps for evaluating KDE overlap.
+
+    Returns:
+        float: The calculated threshold value.
+    """
+    import numpy as np
+    from scipy.stats import gaussian_kde
+    import matplotlib.pyplot as plt
+
+    errors, labels = [], []
+
+    # Iterate through the threshold generator to process all images
+    for batch_images, batch_labels in threshold_generator:
+        reconstructions = autoencoder.predict(batch_images, verbose=0)
+        
+        # Calculate reconstruction errors
+        if loss_function == 'mse':
+            batch_errors = np.mean((batch_images - reconstructions) ** 2, axis=(1, 2, 3))
+        elif loss_function == 'mae':
+            batch_errors = np.mean(np.abs(batch_images - reconstructions), axis=(1, 2, 3))
+        else:
+            raise ValueError(f"Unsupported loss function: {loss_function}")
+        
+        # Append errors and labels
+        errors.extend(batch_errors)
+        labels.extend(batch_labels)
+
+        # Stop when we've processed the entire generator
+        if len(errors) >= threshold_generator.samples:
+            break
+
+    # Convert to numpy arrays
+    errors = np.array(errors)
+    labels = np.argmax(np.array(labels), axis=1)  # Convert one-hot to class indices
+
+    # Separate normal and anomaly errors
+    normal_errors = errors[labels == 0]
+    anomaly_errors = errors[labels == 1]
+
+    # Estimate distributions using KDE
+    normal_kde = gaussian_kde(normal_errors)
+    anomaly_kde = gaussian_kde(anomaly_errors)
+
+    # Find the threshold that minimizes the overlap between distributions
+    min_error, max_error = min(errors), max(errors)
+    x = np.linspace(min_error, max_error, num_steps)
+    kde_overlap = np.abs(normal_kde(x) - anomaly_kde(x))
+    optimal_threshold_index = np.argmin(kde_overlap)
+    threshold = x[optimal_threshold_index]
+
+    # Plot error distributions and threshold
+    plt.figure(figsize=(8, 6))
+    plt.plot(x, normal_kde(x), label='Normal Errors', color='blue')
+    plt.plot(x, anomaly_kde(x), label='Anomaly Errors', color='orange')
+    plt.axvline(threshold, color='red', linestyle='--', label=f'Threshold: {threshold:.4f}')
+    plt.title('Error Distributions with Optimal Threshold')
+    plt.xlabel('Reconstruction Error')
+    plt.ylabel('Density')
+    plt.legend()
+    plt.show()
+
+    return threshold
+
+def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, threshold_generator, config):
+    """
+    Evaluate the autoencoder using a threshold computed from the threshold generator.
+
+    Args:
+        autoencoder (Model): The autoencoder model.
+        test_generator (ImageDataGenerator): The test data generator.
+        threshold_generator (ImageDataGenerator): The threshold data generator.
+        config: Configuration object containing loss function and other parameters.
+    """
+    # Calculate threshold from the threshold generator
+    threshold = get_dist_based_threshold_from_generator(
+        autoencoder=autoencoder,
+        threshold_generator=threshold_generator,
+        loss_function=config.loss
+    )
+
+    print(f"Optimal Threshold: {threshold:.4f}")
+
+    # Evaluate on the test set
+    test_errors, true_labels = get_errors_and_labels(
+        autoencoder=autoencoder,
+        generator=test_generator,
+        loss_function=config.loss
+    )
+
+    # Predict labels based on the threshold
+    predicted_labels = np.where(test_errors > threshold, 1, 0)
+
+    # Compute metrics
+    conf_matrix = confusion_matrix(true_labels, predicted_labels)
+    print(classification_report(true_labels, predicted_labels, target_names=['Normal', 'Anomaly']))
+
+    # Split errors based on the true labels
+    normal_errors = test_errors[true_labels == 0]
+    anomalous_errors = test_errors[true_labels == 1]
+
+    # Plot error distributions
+    plot_double_histogram_with_threshold(
+        normal_errors,
+        anomalous_errors,
+        threshold,
+        f"Reconstruction Error Distribution - Test Set - {config.comment}",
+        "Reconstruction Error",
+        "Frequency",
+        f"Threshold: {threshold:.4f}"
+    )
+
+    # Plot confusion matrix
+    plot_confusion_matrix(conf_matrix, ['Normal', 'Anomaly'], f"Confusion Matrix - Test Set - {config.comment}")

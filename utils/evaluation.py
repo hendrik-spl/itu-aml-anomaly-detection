@@ -504,14 +504,8 @@ def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, lo
     for batch_images, batch_labels in threshold_generator:
         reconstructions = autoencoder.predict(batch_images, verbose=0)
         
-        # Calculate reconstruction errors
-        if loss_function == 'mse':
-            batch_errors = np.mean((batch_images - reconstructions) ** 2, axis=(1, 2, 3))
-        elif loss_function == 'mae':
-            batch_errors = np.mean(np.abs(batch_images - reconstructions), axis=(1, 2, 3))
-        else:
-            raise ValueError(f"Unsupported loss function: {loss_function}")
-        
+        batch_errors = calculate_error(batch_images, reconstructions, loss_function)
+    
         # Append errors and labels
         errors.extend(batch_errors)
         labels.extend(batch_labels)
@@ -593,14 +587,7 @@ def get_dist_based_threshold_based_on_spikes_and_area(autoencoder, threshold_gen
     # Iterate through the threshold generator to process all images
     for batch_images, batch_labels in threshold_generator:
         reconstructions = autoencoder.predict(batch_images, verbose=0)
-        
-        # Calculate reconstruction errors
-        if loss_function == 'mse':
-            batch_errors = np.mean((batch_images - reconstructions) ** 2, axis=(1, 2, 3))
-        elif loss_function == 'mae':
-            batch_errors = np.mean(np.abs(batch_images - reconstructions), axis=(1, 2, 3))
-        else:
-            raise ValueError(f"Unsupported loss function: {loss_function}")
+        batch_errors = calculate_error(batch_images, reconstructions, loss_function)
         
         # Append errors and labels
         errors.extend(batch_errors)
@@ -696,14 +683,8 @@ def get_dist_based_threshold_based_on_areas(autoencoder, threshold_generator, lo
     # Iterate through the threshold generator to process all images
     for batch_images, batch_labels in threshold_generator:
         reconstructions = autoencoder.predict(batch_images, verbose=0)
-        
-        # Calculate reconstruction errors
-        if loss_function == 'mse':
-            batch_errors = np.mean((batch_images - reconstructions) ** 2, axis=(1, 2, 3))
-        elif loss_function == 'mae':
-            batch_errors = np.mean(np.abs(batch_images - reconstructions), axis=(1, 2, 3))
-        else:
-            raise ValueError(f"Unsupported loss function: {loss_function}")
+        batch_errors = calculate_error(batch_images, reconstructions, loss_function)
+
         
         # Append errors and labels
         errors.extend(batch_errors)

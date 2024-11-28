@@ -300,7 +300,7 @@ def evaluate_autoencoder_with_distribution_threshold(autoencoder: Model,
     # Step 7: Plot confusion matrix
     plot_confusion_matrix(conf_matrix, ground_truth_labels, f"Confusion Matrix - Test Set - {config.comment}")
 
-
+# not used uses own sampling so leave in
 def get_dist_based_threshold(autoencoder, threshold_images, threshold_labels, loss_function='mse', num_steps=1000):
     """
     Calculate the optimal threshold for separating normal and anomalous images.
@@ -355,6 +355,7 @@ def get_dist_based_threshold(autoencoder, threshold_images, threshold_labels, lo
 
     return threshold
 
+#not used - does not look between spikes
 def get_dist_based_threshold_from_generator(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
     """
     Calculate the optimal threshold using a generator for the threshold dataset.
@@ -426,6 +427,7 @@ def get_dist_based_threshold_from_generator(autoencoder, threshold_generator, lo
 
     return threshold
 
+#used
 def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, threshold_generator, config):
     """
     Evaluate the autoencoder using a threshold computed from the threshold generator.
@@ -437,7 +439,7 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
         config: Configuration object containing loss function and other parameters.
     """
     # Calculate threshold from the threshold generator
-    threshold = get_dist_based_threshold_from_generator(
+    threshold = get_dist_based_threshold_between_spikes(
         autoencoder=autoencoder,
         threshold_generator=threshold_generator,
         loss_function=config.loss
@@ -476,3 +478,95 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
 
     # Plot confusion matrix
     plot_confusion_matrix(conf_matrix, ['Normal', 'Anomaly'], f"Confusion Matrix - Test Set - {config.comment}")
+
+
+
+##used
+def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
+    """
+    Calculate the optimal threshold using the minimum between the spikes of normal and anomaly distributions.
+
+    Args:
+        autoencoder: Trained autoencoder model.
+        threshold_generator (ImageDataGenerator): Generator for the threshold dataset.
+        loss_function (str): Loss function for error calculation ('mse', 'mae').
+        num_steps (int): Number of steps for evaluating KDE overlap.
+        bandwidth (float): Bandwidth for KDE.
+
+    Assumption: 
+        Distribution peak of anomalous samples is on the right of the distribution peak of good samples. 
+    """
+    import numpy as np
+    from scipy.stats import gaussian_kde
+    import matplotlib.pyplot as plt
+
+    errors, labels = [], []
+
+    # Iterate through the threshold generator to process all images
+    for batch_images, batch_labels in threshold_generator:
+        reconstructions = autoencoder.predict(batch_images, verbose=0)
+        
+        # Calculate reconstruction errors
+        if loss_function == 'mse':
+            batch_errors = np.mean((batch_images - reconstructions) ** 2, axis=(1, 2, 3))
+        elif loss_function == 'mae':
+            batch_errors = np.mean(np.abs(batch_images - reconstructions), axis=(1, 2, 3))
+        else:
+            raise ValueError(f"Unsupported loss function: {loss_function}")
+        
+        # Append errors and labels
+        errors.extend(batch_errors)
+        labels.extend(batch_labels)
+
+        # Stop when we've processed the entire generator
+        if len(errors) >= threshold_generator.samples:
+            break
+
+    # Convert to numpy arrays
+    errors = np.array(errors)
+    labels = np.argmax(np.array(labels), axis=1)  # Convert one-hot to class indices
+
+    # Separate normal and anomaly errors
+    normal_errors = errors[labels == 0]
+    anomaly_errors = errors[labels == 1]
+
+    # KDE with bandwidth adjustment
+    normal_kde = gaussian_kde(normal_errors)
+    anomaly_kde = gaussian_kde(anomaly_errors)
+
+    # Define the x-axis for KDE evaluation (entire range of errors)
+    x = np.linspace(errors.min(), errors.max(), num_steps)
+
+    # Find peaks (spikes) in the distributions
+    normal_density = normal_kde(x)
+    anomaly_density = anomaly_kde(x)
+
+    normal_peak_index = np.argmax(normal_density)
+    anomaly_peak_index = np.argmax(anomaly_density)
+
+    # Ensure that the anomaly spike is to the right of the normal spike
+    if anomaly_peak_index <= normal_peak_index:
+        raise ValueError("Assumption violated: Anomaly peak is not to the right of normal peak.")
+
+    # Define the region between the spikes
+    x_between_spikes = x[normal_peak_index:anomaly_peak_index]
+    kde_overlap_between_spikes = np.abs(normal_kde(x_between_spikes) - anomaly_kde(x_between_spikes))
+
+    # Find the threshold in this region
+    optimal_threshold_index = np.argmin(kde_overlap_between_spikes)
+    threshold = x_between_spikes[optimal_threshold_index]
+
+    # Plot error distributions and threshold
+    plt.figure(figsize=(8, 6))
+    plt.plot(x, normal_density, label='Normal Errors', color='blue')
+    plt.plot(x, anomaly_density, label='Anomaly Errors', color='orange')
+    plt.axvline(threshold, color='red', linestyle='--', label=f'Threshold: {threshold:.4f}')
+    plt.scatter(x[normal_peak_index], normal_density[normal_peak_index], color='blue', label='Normal Peak')
+    plt.scatter(x[anomaly_peak_index], anomaly_density[anomaly_peak_index], color='orange', label='Anomaly Peak')
+    plt.title('Error Distributions with Optimal Threshold Between Spikes')
+    plt.xlabel('Reconstruction Error')
+    plt.ylabel('Density')
+    plt.legend()
+    plt.show()
+
+    return threshold

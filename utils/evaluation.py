@@ -479,9 +479,7 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     # Plot confusion matrix
     plot_confusion_matrix(conf_matrix, ['Normal', 'Anomaly'], f"Confusion Matrix - Test Set - {config.comment}")
 
-
-
-##used
+## used
 def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
     """
     Calculate the optimal threshold using the minimum between the spikes of normal and anomaly distributions.
@@ -570,3 +568,202 @@ def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, lo
     plt.show()
 
     return threshold
+
+
+##used
+def get_dist_based_threshold_based_on_spikes_and_area(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
+    """
+    Calculate the optimal threshold using the areas under the spikes of normal and anomaly distributions.
+
+    Args:
+        autoencoder: Trained autoencoder model.
+        threshold_generator (ImageDataGenerator): Generator for the threshold dataset.
+        loss_function (str): Loss function for error calculation ('mse', 'mae').
+        num_steps (int): Number of steps for evaluating KDE overlap.
+
+    Assumption: 
+        Distribution peak of anomalous samples is on the right of the distribution peak of normal samples. 
+    """
+    import numpy as np
+    from scipy.stats import gaussian_kde
+    import matplotlib.pyplot as plt
+
+    errors, labels = [], []
+
+    # Iterate through the threshold generator to process all images
+    for batch_images, batch_labels in threshold_generator:
+        reconstructions = autoencoder.predict(batch_images, verbose=0)
+        
+        # Calculate reconstruction errors
+        if loss_function == 'mse':
+            batch_errors = np.mean((batch_images - reconstructions) ** 2, axis=(1, 2, 3))
+        elif loss_function == 'mae':
+            batch_errors = np.mean(np.abs(batch_images - reconstructions), axis=(1, 2, 3))
+        else:
+            raise ValueError(f"Unsupported loss function: {loss_function}")
+        
+        # Append errors and labels
+        errors.extend(batch_errors)
+        labels.extend(batch_labels)
+
+        # Stop when we've processed the entire generator
+        if len(errors) >= threshold_generator.samples:
+            break
+
+    # Convert to numpy arrays
+    errors = np.array(errors)
+    labels = np.argmax(np.array(labels), axis=1)  # Convert one-hot to class indices
+
+    # Separate normal and anomaly errors
+    normal_errors = errors[labels == 0]
+    anomaly_errors = errors[labels == 1]
+
+    # KDE with bandwidth adjustment
+    normal_kde = gaussian_kde(normal_errors)
+    anomaly_kde = gaussian_kde(anomaly_errors)
+
+    # Define the x-axis for KDE evaluation (entire range of errors)
+    x = np.linspace(errors.min(), errors.max(), num_steps)
+
+    # Find peaks (spikes) in the distributions
+    normal_density = normal_kde(x)
+    anomaly_density = anomaly_kde(x)
+
+    normal_peak_index = np.argmax(normal_density)
+    anomaly_peak_index = np.argmax(anomaly_density)
+
+    # Ensure that the anomaly spike is to the right of the normal spike
+    if anomaly_peak_index <= normal_peak_index:
+        raise ValueError("Assumption violated: Anomaly peak is not to the right of normal peak.")
+
+    # Define the threshold
+    best_threshold = None
+    min_area_difference = float('inf')
+
+    # Iterate over possible thresholds between the peaks
+    for i in range(normal_peak_index, anomaly_peak_index):
+        threshold = x[i]
+
+        # Calculate areas for the normal distribution
+        normal_area_left = np.trapz(normal_density[:i], x[:i])
+        normal_area_right = np.trapz(normal_density[i:], x[i:])
+
+        # Calculate areas for the anomaly distribution
+        anomaly_area_left = np.trapz(anomaly_density[:i], x[:i])
+        anomaly_area_right = np.trapz(anomaly_density[i:], x[i:])
+
+        # Check conditions: more area left for normal and more area right for anomaly
+        if normal_area_left > normal_area_right and anomaly_area_right > anomaly_area_left:
+            area_difference = abs(normal_area_left - normal_area_right) + abs(anomaly_area_right - anomaly_area_left)
+            if area_difference < min_area_difference:
+                min_area_difference = area_difference
+                best_threshold = threshold
+
+    # Plot error distributions and threshold
+    plt.figure(figsize=(8, 6))
+    plt.plot(x, normal_density, label='Normal Errors', color='blue')
+    plt.plot(x, anomaly_density, label='Anomaly Errors', color='orange')
+    plt.axvline(best_threshold, color='red', linestyle='--', label=f'Threshold: {best_threshold:.4f}')
+    plt.scatter(x[normal_peak_index], normal_density[normal_peak_index], color='blue', label='Normal Peak')
+    plt.scatter(x[anomaly_peak_index], anomaly_density[anomaly_peak_index], color='orange', label='Anomaly Peak')
+    plt.title('Error Distributions with Optimal Threshold (Based on Areas)')
+    plt.xlabel('Reconstruction Error')
+    plt.ylabel('Density')
+    plt.legend()
+    plt.show()
+
+    return best_threshold
+
+def get_dist_based_threshold_based_on_areas(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
+    """
+    Calculate the optimal threshold using the areas under the distributions of normal and anomaly errors.
+
+    Args:
+        autoencoder: Trained autoencoder model.
+        threshold_generator (ImageDataGenerator): Generator for the threshold dataset.
+        loss_function (str): Loss function for error calculation ('mse', 'mae').
+        num_steps (int): Number of steps for evaluating KDE overlap.
+
+    Returns:
+        float: The optimal threshold based on the area criterion.
+    """
+    import numpy as np
+    from scipy.stats import gaussian_kde
+    import matplotlib.pyplot as plt
+
+    errors, labels = [], []
+
+    # Iterate through the threshold generator to process all images
+    for batch_images, batch_labels in threshold_generator:
+        reconstructions = autoencoder.predict(batch_images, verbose=0)
+        
+        # Calculate reconstruction errors
+        if loss_function == 'mse':
+            batch_errors = np.mean((batch_images - reconstructions) ** 2, axis=(1, 2, 3))
+        elif loss_function == 'mae':
+            batch_errors = np.mean(np.abs(batch_images - reconstructions), axis=(1, 2, 3))
+        else:
+            raise ValueError(f"Unsupported loss function: {loss_function}")
+        
+        # Append errors and labels
+        errors.extend(batch_errors)
+        labels.extend(batch_labels)
+
+        # Stop when we've processed the entire generator
+        if len(errors) >= threshold_generator.samples:
+            break
+
+    # Convert to numpy arrays
+    errors = np.array(errors)
+    labels = np.argmax(np.array(labels), axis=1)  # Convert one-hot to class indices
+
+    # Separate normal and anomaly errors
+    normal_errors = errors[labels == 0]
+    anomaly_errors = errors[labels == 1]
+
+    # Estimate KDE for both distributions
+    normal_kde = gaussian_kde(normal_errors)
+    anomaly_kde = gaussian_kde(anomaly_errors)
+
+    # Define the x-axis for KDE evaluation
+    x = np.linspace(errors.min(), errors.max(), num_steps)
+
+    # Compute KDE values for both distributions
+    normal_density = normal_kde(x)
+    anomaly_density = anomaly_kde(x)
+
+    # Define the optimal threshold based on area
+    best_threshold = None
+    min_area_difference = float('inf')
+
+    for i in range(len(x)):
+        threshold = x[i]
+
+        # Calculate areas for the normal distribution
+        normal_area_left = np.trapz(normal_density[:i], x[:i])
+        normal_area_right = np.trapz(normal_density[i:], x[i:])
+
+        # Calculate areas for the anomaly distribution
+        anomaly_area_left = np.trapz(anomaly_density[:i], x[:i])
+        anomaly_area_right = np.trapz(anomaly_density[i:], x[i:])
+
+        # Check conditions: normal errors primarily on the left, anomaly errors primarily on the right
+        if normal_area_left > normal_area_right and anomaly_area_right > anomaly_area_left:
+            area_difference = abs(normal_area_left - normal_area_right) + abs(anomaly_area_right - anomaly_area_left)
+            if area_difference < min_area_difference:
+                min_area_difference = area_difference
+                best_threshold = threshold
+
+    # Plot error distributions and threshold
+    plt.figure(figsize=(8, 6))
+    plt.plot(x, normal_density, label='Normal Errors', color='blue')
+    plt.plot(x, anomaly_density, label='Anomaly Errors', color='orange')
+    plt.axvline(best_threshold, color='red', linestyle='--', label=f'Threshold: {best_threshold:.4f}')
+    plt.title('Error Distributions with Optimal Threshold (Based on Areas)')
+    plt.xlabel('Reconstruction Error')
+    plt.ylabel('Density')
+    plt.legend()
+    plt.show()
+
+    return best_threshold
+

@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import List, Tuple
 from scipy.stats import gaussian_kde
+import cv2
+import os
+
 
 # https://medium.com/@majpaw1996/anomaly-detection-in-computer-vision-with-ssim-ae-2d5256ffc06b
 def dssim_loss(y_true, y_pred):
@@ -661,6 +664,7 @@ def get_dist_based_threshold_based_on_spikes_and_area(autoencoder, threshold_gen
 
     return best_threshold
 
+# not used
 def get_dist_based_threshold_based_on_areas(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
     """
     Calculate the optimal threshold using the areas under the distributions of normal and anomaly errors.
@@ -748,3 +752,166 @@ def get_dist_based_threshold_based_on_areas(autoencoder, threshold_generator, lo
 
     return best_threshold
 
+
+
+
+def get_dist_based_threshold(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
+    """
+    Calculate the optimal threshold using the minimum between the spikes of normal and anomaly distributions.
+
+    Args:
+        autoencoder: Trained autoencoder model.
+        threshold_generator (ImageDataGenerator): Generator for the threshold dataset.
+        loss_function (str): Loss function for error calculation ('mse', 'mae').
+        num_steps (int): Number of steps for evaluating KDE overlap.
+        bandwidth (float): Bandwidth for KDE.
+
+    Assumption: 
+        Distribution peak of anomalous samples is on the right of the distribution peak of good samples. 
+    """
+    import numpy as np
+    from scipy.stats import gaussian_kde
+    import matplotlib.pyplot as plt
+
+    errors, labels = [], []
+
+    # Iterate through the threshold generator to process all images
+    for batch_images, batch_labels in threshold_generator:
+        reconstructions = autoencoder.predict(batch_images, verbose=0)
+        
+        batch_errors = calculate_error(batch_images, reconstructions, loss_function)
+    
+        # Append errors and labels
+        errors.extend(batch_errors)
+        labels.extend(batch_labels)
+
+        # Stop when we've processed the entire generator
+        if len(errors) >= threshold_generator.samples:
+            break
+
+    # Convert to numpy arrays
+    errors = np.array(errors)
+    labels = np.argmax(np.array(labels), axis=1)  # Convert one-hot to class indices
+
+    # Separate normal and anomaly errors
+    normal_errors = errors[labels == 0]
+    anomaly_errors = errors[labels == 1]
+
+    # KDE with bandwidth adjustment
+    normal_kde = gaussian_kde(normal_errors)
+    anomaly_kde = gaussian_kde(anomaly_errors)
+
+    # Define the x-axis for KDE evaluation (entire range of errors)
+    x = np.linspace(errors.min(), errors.max(), num_steps)
+
+    # Find peaks (spikes) in the distributions
+    normal_density = normal_kde(x)
+    anomaly_density = anomaly_kde(x)
+
+    normal_peak_index = np.argmax(normal_density)
+    anomaly_peak_index = np.argmax(anomaly_density)
+
+    # Ensure that the anomaly spike is to the right of the normal spike
+    if anomaly_peak_index <= normal_peak_index:
+        raise ValueError("Assumption violated: Anomaly peak is not to the right of normal peak.")
+
+    # Define the region between the spikes
+    x_between_spikes = x[normal_peak_index:anomaly_peak_index]
+    kde_overlap_between_spikes = np.abs(normal_kde(x_between_spikes) - anomaly_kde(x_between_spikes))
+
+    # Find the threshold in this region
+    optimal_threshold_index = np.argmin(kde_overlap_between_spikes)
+    threshold = x_between_spikes[optimal_threshold_index]
+
+    return threshold
+
+def preprocess_image(image_path, target_size=(256, 256)):
+    """Load and preprocess an image for the autoencoder."""
+    img = cv2.imread(image_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, target_size)
+    img = img.astype('float32') / 255.0  # Normalize to [0, 1] and set to float32
+    img = np.expand_dims(img, axis=0)  # Add batch dimension
+    return img
+
+def calculate_reconstruction_error(original, reconstructed):
+    """Calculate the mean squared error between original and reconstructed images."""
+    return np.mean((original - reconstructed) ** 2)
+
+def predict_anomaly_and_plot(autoencoder, threshold_generator, image_path, mask_dir, loss_function='mse', threshold=0.02):
+    """
+    Predict if an image is an anomaly based on reconstruction error
+    and plot original, reconstructed, and mask images.
+    
+    Parameters:
+        autoencoder (Model): The trained autoencoder model.
+        image_path (str): Path to the image file.
+        mask_dir (str): Directory containing anomaly mask images.
+        threshold (float): Error threshold to classify as anomaly.
+    
+    Returns:
+        bool: True if anomaly, False otherwise.
+        float: The reconstruction error.
+    """
+    
+    if os.path.exists(image_path):
+        print(f"The file exists: {image_path}")
+    else:
+        print(f"The file does not exist: {image_path}")
+        
+    threshold = get_dist_based_threshold(autoencoder=autoencoder, threshold_generator=threshold_generator,loss_function=loss_function)
+    
+    # Preprocess the image
+    img = preprocess_image(image_path)
+    
+    # Reconstruct the image with the autoencoder
+    reconstructed_img = autoencoder.predict(img)
+
+    # Ensure reconstructed image is in float32 format
+    reconstructed_img = reconstructed_img.astype('float32')
+    
+    # Calculate reconstruction error
+    error = calculate_reconstruction_error(img, reconstructed_img)
+    
+    # Classify as anomaly if error exceeds the threshold
+    is_anomaly = error > threshold
+
+    # Generate the corresponding mask path
+    file_name = os.path.basename(image_path).split('.')[0] + '_mask.png'
+    label = os.path.basename(os.path.dirname(image_path))
+    mask_path = os.path.join(mask_dir, label, file_name)
+    
+    # Load the mask image if it exists
+    if os.path.exists(mask_path):
+        mask_img = plt.imread(mask_path)
+    else:
+        mask_img = None
+
+    # Plot original, reconstructed, and mask images
+    plt.figure(figsize=(12, 4))
+    
+    # Original image
+    plt.subplot(1, 3, 1)
+    plt.imshow(img[0])  # Remove batch dimension for display
+    plt.title("Original Image")
+    plt.axis("off")
+    
+    # Reconstructed image
+    plt.subplot(1, 3, 2)
+    plt.imshow(reconstructed_img[0])  # Remove batch dimension for display
+    plt.title("Reconstructed Image")
+    plt.axis("off")
+    
+    # Anomaly mask
+    plt.subplot(1, 3, 3)
+    if mask_img is not None:
+        plt.imshow(mask_img, cmap="gray")
+        plt.title("Anomaly Mask")
+    else:
+        plt.text(0.5, 0.5, 'No Mask Available', ha='center', va='center', fontsize=12)
+    plt.axis("off")
+    
+    plt.suptitle(f"Reconstruction Error: {error:.4f}| Threshold: {threshold} | Anomaly: {'Yes' if is_anomaly else 'No'}")
+    plt.show()
+    
+    return is_anomaly, error

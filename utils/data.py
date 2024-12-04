@@ -1,4 +1,5 @@
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import numpy as np
 
 def load_data(category: str, batch_size: int):
     """
@@ -65,9 +66,7 @@ def threshold_data_loader(data_generator, batch_size: int, threshold_split: floa
 
     Returns:
         DirectoryIterator: A data loader for the threshold dataset.
-    """
-    from tensorflow.keras.preprocessing.image import ImageDataGenerator
-    import numpy as np
+    """    
 
     # Create a generator for the test directory
     test_generator = data_generator

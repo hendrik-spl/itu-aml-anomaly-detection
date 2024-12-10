@@ -1,5 +1,5 @@
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 def load_data(category: str, batch_size: int):
     """
@@ -54,41 +54,6 @@ def load_data(category: str, batch_size: int):
     )
 
     return train_generator, validation_generator, test_generator
-
-def threshold_data_loader(data_generator, batch_size: int, threshold_split: float = 0.5):
-    """
-    Dynamically samples from the test directory to create a threshold dataset.
-
-    Args:
-        category (str): The category of the dataset.
-        batch_size (int): The batch size for the data loader.
-        threshold_split (float): Fraction of the dataset to use for threshold calculation.
-
-    Returns:
-        DirectoryIterator: A data loader for the threshold dataset.
-    """    
-
-    # Create a generator for the test directory
-    test_generator = data_generator
-
-    # Calculate the total number of images to sample for threshold setting
-    total_images = test_generator.samples
-    threshold_sample_size = int(total_images * threshold_split)
-
-    # Generate a subset of the test set for threshold calculation
-    sampled_images, sampled_labels = [], []
-    for i in range(threshold_sample_size // batch_size + 1):
-        batch_images, batch_labels = next(test_generator)
-        sampled_images.append(batch_images)
-        sampled_labels.append(batch_labels)
-
-    # Combine sampled batches
-    sampled_images = np.concatenate(sampled_images, axis=0)[:threshold_sample_size]
-    sampled_labels = np.concatenate(sampled_labels, axis=0)[:threshold_sample_size]
-
-    return sampled_images, sampled_labels
-
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 def load_data_with_test_split(category: str, batch_size: int, test_split: float = 0.5):
     """

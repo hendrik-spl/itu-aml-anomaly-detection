@@ -1,7 +1,7 @@
 import numpy as np
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-def load_data_with_test_split(category: str, batch_size: int, test_split: float = 0.5):
+def load_data_with_test_split(category: str, batch_size: int, test_split: float = 0.5, rotation_range: int = 0):
     """
     Generates data generators for training, validation, testing, and threshold datasets.
 
@@ -19,9 +19,16 @@ def load_data_with_test_split(category: str, batch_size: int, test_split: float 
     train_dir = f'{data_dir}/train'
     test_dir = f'{data_dir}/test'
 
-    # Training and validation generators
+    # Training generator with data augmentation
     datagen_train = ImageDataGenerator(
         rescale=1./255, 
+        validation_split=0.2,
+        rotation_range=rotation_range,
+    )
+
+    # Validation generator without data augmentation
+    datagen_val = ImageDataGenerator(
+        rescale=1./255,
         validation_split=0.2
     )
 
@@ -40,7 +47,7 @@ def load_data_with_test_split(category: str, batch_size: int, test_split: float 
         subset='training'
     )
 
-    validation_generator = datagen_train.flow_from_directory(
+    validation_generator = datagen_val.flow_from_directory(
         train_dir,
         target_size=(256, 256),
         batch_size=batch_size,

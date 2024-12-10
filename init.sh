@@ -64,7 +64,7 @@ fi
 # Set up virtual environment
 if [ ! -d "venv" ]; then
     echo_info "Setting up virtual environment..."
-    python3 -m venv venv
+    python3 -m venv .venv
 else
     echo_info "Virtual environment already exists."
 fi

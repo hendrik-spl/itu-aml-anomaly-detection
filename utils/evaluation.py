@@ -3,7 +3,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 import numpy as np
 import tensorflow as tf
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import confusion_matrix, classification_report, roc_curve, roc_auc_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import List, Tuple
@@ -171,6 +171,28 @@ def plot_confusion_matrix(confusion_matrix: np.ndarray, labels: List[str], title
     plt.title(title)
     plt.show()
 
+def plot_roc_curve(true_labels: np.ndarray, predicted_scores: np.ndarray, title: str) -> None:
+    """
+    Plot the ROC curve.
+
+    Parameters:
+    true_labels (np.ndarray): The true labels.
+    predicted_scores (np.ndarray): The predicted scores.
+    title (str): The title of the plot.
+    """
+    fpr, tpr, thresholds = roc_curve(true_labels, predicted_scores)
+    auc = roc_auc_score(true_labels, predicted_scores)
+
+    plt.plot(fpr, tpr, label=f'AUC = {auc:.4f}')
+    plt.plot([0, 1], [0, 1], linestyle='--', color='red')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title(title)
+    plt.legend(loc='lower right')
+    plt.show()
+
 def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGenerator, test_generator: ImageDataGenerator, config, threshold_type = 'simple') -> None:
     """
     Evaluate the autoencoder model.
@@ -239,6 +261,9 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
 
     # Step 10: Plot confusion matrix
     plot_confusion_matrix(conf_matrix, ground_truth_labels, f"Confusion Matrix - Test Set - {config.comment}")
+
+    # Step 11: Plot ROC curve and calculate AUC
+    plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}")
 
 
 def evaluate_autoencoder_with_distribution_threshold(autoencoder: Model, 
@@ -481,6 +506,9 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
 
     # Plot confusion matrix
     plot_confusion_matrix(conf_matrix, ['Normal', 'Anomaly'], f"Confusion Matrix - Test Set - {config.comment}")
+
+    # Plot ROC curve
+    plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}")
 
 ## used
 def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):

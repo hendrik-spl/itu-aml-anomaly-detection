@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-def plot_history(comment, history):
+def plot_history(comment, history, wandb):
     """
     Plot training history.
     
@@ -23,13 +23,15 @@ def plot_history(comment, history):
     plt.ylabel('Loss')
     plt.legend()
 
+    wandb.log({"history_plot": wandb.Image(plt)})
+
     plt.show()
 
     print(f'Best train_loss: {np.min(history.history["loss"]).round(4)}')
     print(f'Best val_loss: {np.min(history.history["val_loss"]).round(4)}')
     print(f'Last improvement of val_loss at epoch: {np.argmin(history.history["val_loss"])+1}')
 
-def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator, n_images: int, title) -> None:
+def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator, n_images: int, title, wandb) -> None:
     """
     Plot original and reconstructed images from the autoencoder.
 
@@ -52,5 +54,7 @@ def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator,
         axes[1, i].imshow(reconstructions[i])
         axes[1, i].axis('off')
         axes[1, i].set_title('Reconstruction')
+
+    wandb.log({"reconstructions_plot": wandb.Image(plt)})
 
     plt.show()

@@ -4,7 +4,7 @@ import matplotlib.patches as mpatches
 from sklearn.manifold import TSNE
 from tensorflow.keras.models import Model
 
-def plot_latent_space(autoencoder, test_generator, layer_name='bottleneck', n_components=2):
+def plot_latent_space(autoencoder, test_generator, wandb, layer_name='bottleneck', n_components=2):
     """
     Extract latent representations, apply t-SNE, and plot the latent space with class labels.
 
@@ -56,4 +56,5 @@ def plot_latent_space(autoencoder, test_generator, layer_name='bottleneck', n_co
     plt.xlabel('t-SNE Dimension 1')
     plt.ylabel('t-SNE Dimension 2')
     plt.tight_layout()
+    wandb.log({"latent_space_plot" : wandb.Image(plt)})
     plt.show()

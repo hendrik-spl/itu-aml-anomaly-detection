@@ -133,7 +133,7 @@ def plot_single_histogram_with_threshold(errors: List[float], threshold: float, 
     plt.title(title)
     plt.show()
 
-def plot_double_histogram_with_threshold(normal_errors: List[float], anomaly_errors: List[float], threshold: float, title: str, xlabel: str, ylabel: str, threshold_label: str) -> None:
+def plot_double_histogram_with_threshold(normal_errors: List[float], anomaly_errors: List[float], threshold: float, title: str, xlabel: str, ylabel: str, threshold_label: str, wandb) -> None:
     """
     Plot two histograms (normal and anomaly errors) with a threshold line.
 
@@ -153,6 +153,7 @@ def plot_double_histogram_with_threshold(normal_errors: List[float], anomaly_err
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.title(title)
+    wandb.log({"error_distr_plot": wandb.Image(plt)})
     plt.show()
 
 def plot_confusion_matrix(confusion_matrix: np.ndarray, labels: List[str], title: str) -> None:
@@ -171,7 +172,7 @@ def plot_confusion_matrix(confusion_matrix: np.ndarray, labels: List[str], title
     plt.title(title)
     plt.show()
 
-def plot_roc_curve(true_labels: np.ndarray, predicted_scores: np.ndarray, title: str) -> None:
+def plot_roc_curve(true_labels: np.ndarray, predicted_scores: np.ndarray, title: str, wandb) -> None:
     """
     Plot the ROC curve.
 
@@ -182,6 +183,7 @@ def plot_roc_curve(true_labels: np.ndarray, predicted_scores: np.ndarray, title:
     """
     fpr, tpr, thresholds = roc_curve(true_labels, predicted_scores)
     auc = roc_auc_score(true_labels, predicted_scores)
+    wandb.log({"auc": auc})
 
     plt.plot(fpr, tpr, label=f'AUC = {auc:.4f}')
     plt.plot([0, 1], [0, 1], linestyle='--', color='red')
@@ -191,9 +193,10 @@ def plot_roc_curve(true_labels: np.ndarray, predicted_scores: np.ndarray, title:
     plt.ylabel('True Positive Rate')
     plt.title(title)
     plt.legend(loc='lower right')
+    wandb.log({"roc_curve": wandb.Image(plt)})
     plt.show()
 
-def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGenerator, test_generator: ImageDataGenerator, config, threshold_type = 'simple') -> None:
+def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGenerator, test_generator: ImageDataGenerator, wandb, config, threshold_type = 'simple') -> None:
     """
     Evaluate the autoencoder model.
 
@@ -255,7 +258,7 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
         f"Reconstruction Error Distribution - Test Set - {config.comment}",
         "Reconstruction Error",
         "Frequency",
-        f"Threshold at {config.threshold_percentage}th percentile: {threshold:.4f}",
+        f"Threshold at {config.threshold_percentage}th percentile: {threshold:.4f}"
     )
     print(classification_report(true_labels, predicted_labels, target_names=['Normal', 'Anomaly']))
 
@@ -263,11 +266,10 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
     plot_confusion_matrix(conf_matrix, ground_truth_labels, f"Confusion Matrix - Test Set - {config.comment}")
 
     # Step 11: Plot ROC curve and calculate AUC
-    plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}")
-
+    plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}", wandb=wandb)
 
 ## Two next functions are used to evaluate the AE based on distributions and the sampled test set 
-def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, threshold_generator, config):
+def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, threshold_generator, config, wandb):
     """
     Evaluate the autoencoder using a threshold computed from the threshold generator.
 
@@ -284,6 +286,8 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
         loss_function=config.loss
     )
 
+    wandb.log({"threshold": threshold})
+
     print(f"Optimal Threshold: {threshold:.4f}")
 
     # Evaluate on the test set
@@ -297,8 +301,13 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     predicted_labels = np.where(test_errors > threshold, 1, 0)
 
     # Compute metrics
+    target_names=['Normal', 'Anomaly']
     conf_matrix = confusion_matrix(true_labels, predicted_labels)
-    print(classification_report(true_labels, predicted_labels, target_names=['Normal', 'Anomaly']))
+    print(classification_report(true_labels, predicted_labels, target_names=target_names))
+    wandb.log({"confusion_matrix": wandb.plot.confusion_matrix(probs=None,
+                                                           y_true=true_labels,
+                                                           preds=predicted_labels,
+                                                           class_names=target_names)})
 
     # Split errors based on the true labels
     normal_errors = test_errors[true_labels == 0]
@@ -312,14 +321,15 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
         f"Reconstruction Error Distribution - Test Set - {config.comment}",
         "Reconstruction Error",
         "Frequency",
-        f"Threshold: {threshold:.4f}"
+        f"Threshold: {threshold:.4f}",
+        wandb=wandb
     )
 
     # Plot confusion matrix
     plot_confusion_matrix(conf_matrix, ['Normal', 'Anomaly'], f"Confusion Matrix - Test Set - {config.comment}")
 
     # Plot ROC curve
-    plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}")
+    plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}", wandb=wandb)
 
 def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
     """
@@ -403,8 +413,6 @@ def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, lo
     plt.show()
 
     return threshold
-
-
 
 
 ## Functions to plot reconstruction with original image and mask

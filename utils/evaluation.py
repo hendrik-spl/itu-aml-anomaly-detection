@@ -586,3 +586,54 @@ def predict_anomaly_and_plot(autoencoder, threshold_generator, image_path, mask_
     plt.show()
     
     return is_anomaly, error
+
+
+
+def plot_images_with_info(autoencoder: Model, test_generator: ImageDataGenerator,threshold_generator: ImageDataGenerator, loss_function: str, n_images: int, title: str, wandb) -> None:
+    """
+    Plot images from the test generator along with their labels, reconstruction error, and anomaly status.
+
+    Parameters:
+    autoencoder (Model): The autoencoder model.
+    test_generator (ImageDataGenerator): The test data generator.
+    loss_function (str): The loss function to use ('mae', 'mse', 'dssim', 'ssim', 'ssim_l1').
+    threshold (float): The threshold for anomaly detection based on reconstruction error.
+    n_images (int): The number of images to plot.
+    title (str): The title of the plot.
+    """
+    threshold = get_dist_based_threshold(
+        autoencoder=autoencoder,
+        threshold_generator=threshold_generator,
+        loss_function=loss_function
+    )
+    test_images, test_labels = next(test_generator)
+    reconstructions = autoencoder.predict(test_images, verbose=0)
+    errors = calculate_error(test_images, reconstructions, loss_function)
+
+    fig, axes = plt.subplots(n_images, 3, figsize=(15, 5 * n_images))
+    fig.suptitle(title, fontsize=16)
+
+    for i in range(n_images):
+        is_anomaly = "Yes" if errors[i] > threshold else "No"
+        label = "Normal" if test_labels[i][test_generator.class_indices['good']] == 1 else "Anomaly"
+
+        axes[i, 0].imshow(test_images[i])
+        axes[i, 0].axis("off")
+        axes[i, 0].set_title(f"Original (Label: {label})")
+
+        axes[i, 1].imshow(reconstructions[i])
+        axes[i, 1].axis("off")
+        axes[i, 1].set_title(f"Reconstruction")
+
+        axes[i, 2].text(
+            0.5, 0.5, 
+            f"Error: {errors[i]:.4f}\nAnomaly: {is_anomaly}",
+            fontsize=12, 
+            ha="center", 
+            va="center"
+        )
+        axes[i, 2].axis("off")
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    wandb.log({"plot_image_with_info": wandb.Image(plt)})
+    plt.show()

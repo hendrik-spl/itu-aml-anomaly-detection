@@ -24,3 +24,17 @@ def ssim_l1_loss(y_true, y_pred, alpha=0.5):
     combined_loss = alpha * ssim_loss + (1 - alpha) * l1_loss
     
     return combined_loss
+
+def return_loss(loss):
+    if loss == 'mse':
+        return 'mean_squared_error'
+    elif loss == 'mae':
+        return 'mean_absolute_error'
+    elif loss == 'ssim':
+        return ssim_loss
+    elif loss == 'ssim_l1':
+        return ssim_l1_loss
+    elif loss == 'dssim':
+        return dssim_loss
+    else:
+        raise ValueError(f"Unknown loss function: {loss}")

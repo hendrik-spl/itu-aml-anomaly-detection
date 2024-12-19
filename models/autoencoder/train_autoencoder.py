@@ -16,15 +16,15 @@ from utils.evaluation import evaluate_autoencoder, evaluate_autoencoder_with_thr
 from utils.models import vanilla_autoencoder
 
 config = {
-        "comment" : "test py file",
+        "comment" : "test screws again again",
         "epochs" : 1,
-        "loss" : 'ssim', # available options: 'mse', 'mae', 'ssim', 'ssim_l1', 'dssim'
+        "loss" : 'mae', # available options: 'mse', 'mae', 'ssim', 'ssim_l1', 'dssim'
         "optimizer" : 'adam',
         "dropout_value" : 0.0,
         "rotation_range" : 90,
         "batch_size" : 16,
         "latent_dim" : 512,
-        "data_class" : "screw",
+        "data_class" : "metal_nut",
         }
 
 def main(config: dict):

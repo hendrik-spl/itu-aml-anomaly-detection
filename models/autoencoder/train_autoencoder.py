@@ -8,29 +8,35 @@ from keras.callbacks import EarlyStopping
 import wandb
 from wandb.integration.keras import WandbMetricsLogger, WandbModelCheckpoint
 
-from utils.helper import get_root_dir, set_seed, setup_gpu
+from utils.helper import set_seed
 from utils.data import load_data_with_test_split
 from utils.plots import plot_reconstructions, plot_history
 from utils.latent_space import plot_latent_space
-from utils.evaluation import evaluate_autoencoder, evaluate_autoencoder_with_threshold_generator
+from utils.evaluation import evaluate_autoencoder_with_threshold_generator
 from utils.models import vanilla_autoencoder
 
+wandb_project = "autoencoder2"
+wandb_tags = [ 
+    "autoencoder", 
+    "test" # remove this tage when running the actual training
+]
+
 config = {
-        "comment" : "test screws again again",
+        "comment" : "test wandb config",
         "epochs" : 1,
         "loss" : 'mae', # available options: 'mse', 'mae', 'ssim', 'ssim_l1', 'dssim'
         "optimizer" : 'adam',
-        "dropout_value" : 0.0,
+        "dropout_value" : 0.0, # setting this value to 0 will basically remove dropout layers
         "rotation_range" : 90,
         "batch_size" : 16,
         "latent_dim" : 512,
         "data_class" : "metal_nut",
         }
 
-def main(config: dict):
+def main(config):
     set_seed(1234)
 
-    wandb.init(project="autoencoder", config=config)
+    wandb.init(project=wandb_project, tags=wandb_tags, config=config)
     wandb.define_metric('val_loss', summary='min')
     config = wandb.config
 

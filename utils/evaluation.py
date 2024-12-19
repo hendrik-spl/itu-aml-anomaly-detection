@@ -3,7 +3,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 import numpy as np
 import tensorflow as tf
-from sklearn.metrics import confusion_matrix, classification_report, roc_curve, roc_auc_score
+from sklearn.metrics import confusion_matrix, classification_report, roc_curve, roc_auc_score, f1_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import List, Tuple
@@ -305,8 +305,10 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     # Compute metrics
     labels=['Normal', 'Anomaly']
     conf_matrix = confusion_matrix(true_labels, predicted_labels)
-    f1_score = classification_report(true_labels, predicted_labels, target_names=labels, output_dict=True)
-    wandb.log({"f1_score": f1_score})
+
+    # get f1 score
+    f1 = f1_score(true_labels, predicted_labels, labels=labels)
+    wandb.log({"f1_score": f1})
 
     # Split errors based on the true labels
     normal_errors = test_errors[true_labels == 0]

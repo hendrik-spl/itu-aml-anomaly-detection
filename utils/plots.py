@@ -58,3 +58,40 @@ def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator,
     wandb.log({"reconstructions_plot": wandb.Image(plt)})
 
     plt.show()
+
+def plot_feature_map(autoencoder, layer_name, input_image):
+    """
+    Visualize the first 10 feature maps for a specific layer of the autoencoder using original colors.
+    
+    Args:
+        autoencoder (Model): The autoencoder model.
+        layer_name (str): Name of the layer to visualize feature maps.
+        input_image (numpy.ndarray): Input image to generate feature maps.
+    """
+
+    # Create a model that outputs feature maps for the specified layer
+    layer_output = autoencoder.get_layer(name=layer_name).output
+    feature_map_model = Model(inputs=autoencoder.input, outputs=layer_output)
+
+    # Get feature maps
+    feature_map = feature_map_model.predict(np.expand_dims(input_image, axis=0))
+
+    # Normalize feature map values to [0, 1] for proper display
+    feature_map -= feature_map.min()
+    feature_map /= feature_map.max()
+
+    # Limit to the first 10 feature maps
+    num_filters = min(1, feature_map.shape[-1])
+
+    # Plot feature maps
+    plt.figure(figsize=(15, 5))
+    plt.suptitle(f"Feature Maps for Layer: {layer_name}", fontsize=12)
+
+    for i in range(num_filters):
+        plt.subplot(2, num_filters, i + 1)
+        plt.imshow(feature_map[0, :, :, i])  # Display original colors
+        plt.axis('off')
+
+    plt.subplots_adjust(top=0.85)  # Add space at the top of the figure
+    plt.tight_layout()
+    plt.show()

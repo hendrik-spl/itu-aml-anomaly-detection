@@ -1,16 +1,12 @@
-# import os
-# import sys
+import os
+import sys
+sys.path.insert(0, os.getcwd())
 
 import tensorflow as tf
 from keras.callbacks import EarlyStopping
 
 import wandb
 from wandb.integration.keras import WandbMetricsLogger, WandbModelCheckpoint
-
-# # modify sys.path for it to contain the main repo path so we can import modules such as below
-# parent_dir = os.path.abspath(os.path.join(os.getcwd(), '../..'))
-# if parent_dir not in sys.path:
-#     sys.path.insert(0, parent_dir)
 
 from utils.helper import get_root_dir, set_seed, setup_gpu
 from utils.data import load_data_with_test_split
@@ -28,9 +24,10 @@ config = {
         "rotation_range" : 90,
         "batch_size" : 16,
         "latent_dim" : 512,
+        "data_class" : "screw",
         }
 
-def main():
+def main(config: dict):
     set_seed(1234)
 
     wandb.init(project="autoencoder", config=config)
@@ -39,7 +36,7 @@ def main():
 
     # Load data
     train_generator, validation_generator, test_generator, threshold_generator = load_data_with_test_split(
-        category="screw",
+        category=config.data_class,
         batch_size=32,
         test_split=0.4,
         rotation_range=config.rotation_range
@@ -56,8 +53,8 @@ def main():
     # Callbacks
     callbacks = [
         EarlyStopping(monitor='val_loss', mode='min', patience=20),
-        WandbMetricsLogger,
-        WandbModelCheckpoint(f"models/checkpoints/{config.comment}.keras", verbose=1, save_best_only=True)
+        WandbMetricsLogger(),
+        WandbModelCheckpoint(filepath=f"models/checkpoints/{config.comment}.keras", verbose=1, save_best_only=True)
     ]
 
     # Train model
@@ -85,4 +82,4 @@ def main():
     plot_latent_space(autoencoder, test_generator, wandb, layer_name='bottleneck')
 
 if __name__ == "__main__":    
-    main()
+    main(config=config)

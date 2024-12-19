@@ -156,7 +156,7 @@ def plot_double_histogram_with_threshold(normal_errors: List[float], anomaly_err
     wandb.log({"error_distr_plot": wandb.Image(plt)})
     plt.show()
 
-def plot_confusion_matrix(confusion_matrix: np.ndarray, labels: List[str], title: str) -> None:
+def plot_confusion_matrix(confusion_matrix: np.ndarray, labels: List[str], title: str, wandb) -> None:
     """
     Plot a confusion matrix.
 
@@ -170,6 +170,8 @@ def plot_confusion_matrix(confusion_matrix: np.ndarray, labels: List[str], title
     plt.xlabel('Predicted')
     plt.ylabel('Actual')
     plt.title(title)
+    wandb.log({"confusion_matrix": wandb.Image(plt)})
+
     plt.show()
 
 def plot_roc_curve(true_labels: np.ndarray, predicted_scores: np.ndarray, title: str, wandb) -> None:
@@ -301,13 +303,10 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     predicted_labels = np.where(test_errors > threshold, 1, 0)
 
     # Compute metrics
-    target_names=['Normal', 'Anomaly']
+    labels=['Normal', 'Anomaly']
     conf_matrix = confusion_matrix(true_labels, predicted_labels)
-    print(classification_report(true_labels, predicted_labels, target_names=target_names))
-    wandb.log({"confusion_matrix": wandb.plot.confusion_matrix(probs=None,
-                                                           y_true=true_labels,
-                                                           preds=predicted_labels,
-                                                           class_names=target_names)})
+    f1_score = classification_report(true_labels, predicted_labels, target_names=labels, output_dict=True)
+    wandb.log({"f1_score": f1_score})
 
     # Split errors based on the true labels
     normal_errors = test_errors[true_labels == 0]
@@ -326,7 +325,11 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     )
 
     # Plot confusion matrix
-    plot_confusion_matrix(conf_matrix, ['Normal', 'Anomaly'], f"Confusion Matrix - Test Set - {config.comment}")
+    plot_confusion_matrix(
+        confusion_matrix=conf_matrix, 
+        labels=labels, 
+        title=f"Confusion Matrix - Test Set - {config.comment}",
+        wandb=wandb)
 
     # Plot ROC curve
     plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}", wandb=wandb)

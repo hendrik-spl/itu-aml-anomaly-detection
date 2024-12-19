@@ -14,11 +14,6 @@ def plot_latent_space(autoencoder, test_generator, wandb, layer_name='bottleneck
     layer_name (str): The name of the bottleneck layer to extract features from.
     n_components (int): Number of dimensions for t-SNE.
     """
-    from sklearn.manifold import TSNE
-    from tensorflow.keras.models import Model
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
 
     # Extract latent representations
     encoder = Model(inputs=autoencoder.input, outputs=autoencoder.get_layer(layer_name).output)
@@ -28,8 +23,11 @@ def plot_latent_space(autoencoder, test_generator, wandb, layer_name='bottleneck
     original_images = np.concatenate(all_images)
     labels = np.concatenate(all_labels)
 
+    # Get the relevant class index programmatically
+    relevant_label_index = test_generator.class_indices["good"]
+
     # Convert one-hot encoded labels to binary class indices
-    labels_indices = np.where((labels == [1, 0, 0, 0, 0, 0]).all(axis=1), 0, 1)
+    labels_indices = labels[:, relevant_label_index]
 
     # Get latent representations and flatten spatial dimensions
     latent_representations = encoder.predict(original_images, verbose=0)
@@ -58,7 +56,6 @@ def plot_latent_space(autoencoder, test_generator, wandb, layer_name='bottleneck
     plt.tight_layout()
     wandb.log({"latent_space_plot" : wandb.Image(plt)})
     plt.show()
-
 
 def plot_3d_latent_space_from_angles(autoencoder, test_generator, layer_name='bottleneck', n_components=3, angles=None):
     """

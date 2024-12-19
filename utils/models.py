@@ -58,3 +58,71 @@ def vanilla_autoencoder(input_shape, optimizer, latent_dim, loss):
     autoencoder = Model(input_img, x)
     autoencoder.compile(optimizer=optimizer, loss=return_loss(loss))
     return autoencoder
+
+def deep_autoencoder(input_shape=(256, 256, 3), optimizer="adam",latent_dim=512, loss="mse",batch_norm=True,dropout_value=0.5,):
+    """
+        Architecture similar to the one used by:
+        https://github.com/plutoyuxie/AutoEncoder-SSIM-for-unsupervised-anomaly-detection-/blob/master/train.py
+        Added customizable dropout and batchnorm  
+
+    """
+    input_img = Input(shape=input_shape)
+
+    # Encoder
+    x = Conv2D(32, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(input_img)
+    if batch_norm:
+        x = BatchNormalization()(x)
+    x = Dropout(dropout_value)(x)
+
+    x = Conv2D(32, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    if batch_norm:
+        x = BatchNormalization()(x)
+    x = Dropout(dropout_value)(x)
+
+    x = Conv2D(32, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    if batch_norm:
+        x = BatchNormalization()(x)
+    x = Dropout(dropout_value)(x)
+
+    x = Conv2D(64, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    if batch_norm:
+        x = BatchNormalization()(x)
+    x = Dropout(dropout_value)(x)
+
+    x = Conv2D(64, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    if batch_norm:
+        x = BatchNormalization()(x)
+    x = Dropout(dropout_value)(x)
+
+    x = Conv2D(128, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    if batch_norm:
+        x = BatchNormalization()(x)
+    x = Dropout(dropout_value)(x)
+
+    x = Conv2D(64, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    if batch_norm:
+        x = BatchNormalization()(x)
+    x = Dropout(dropout_value)(x)
+
+    x = Conv2D(32, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    if batch_norm:
+        x = BatchNormalization()(x)
+    x = Dropout(dropout_value)(x)
+
+    encoded = Conv2D(latent_dim, (8, 8), strides=1, activation="linear", padding="valid")(x)
+
+    # Decoder
+    x = Conv2DTranspose(32, (8, 8), strides=1, activation=LeakyReLU(alpha=0.2), padding="valid")(encoded)
+    x = Conv2D(64, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    x = Conv2D(128, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    x = Conv2DTranspose(64, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    x = Conv2D(64, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    x = Conv2DTranspose(32, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    x = Conv2D(32, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    x = Conv2DTranspose(32, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(x)
+    
+    decoded = Conv2DTranspose(input_shape[2], (4, 4), strides=2, activation="sigmoid", padding="same")(x)
+
+    autoencoder = Model(input_img, decoded)
+    autoencoder.compile(optimizer=optimizer, loss=loss)
+    return autoencoder

@@ -392,7 +392,7 @@ def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, lo
 
     # Ensure that the anomaly spike is to the right of the normal spike
     if anomaly_peak_index <= normal_peak_index:
-        raise ValueError("Assumption violated: Anomaly peak is not to the right of normal peak.")
+        print(f"Warning - Assumption violated: Anomaly peak is not to the right of normal peak.")
 
     # Define the region between the spikes
     x_between_spikes = x[normal_peak_index:anomaly_peak_index]

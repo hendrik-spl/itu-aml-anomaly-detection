@@ -59,7 +59,7 @@ def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator,
 
     plt.show()
 
-def plot_feature_map(autoencoder, layer_name, input_image):
+def plot_feature_map(autoencoder, layer_name, input_image, wandb):
     """
     Visualize the first 10 feature maps for a specific layer of the autoencoder using original colors.
     
@@ -94,4 +94,5 @@ def plot_feature_map(autoencoder, layer_name, input_image):
 
     plt.subplots_adjust(top=0.85)  # Add space at the top of the figure
     plt.tight_layout()
+    wandb.log({f"Feature map{layer_name}": wandb.Image(plt)})
     plt.show()

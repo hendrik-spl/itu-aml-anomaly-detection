@@ -285,7 +285,8 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     threshold = get_dist_based_threshold_between_spikes(
         autoencoder=autoencoder,
         threshold_generator=threshold_generator,
-        loss_function=config.loss
+        loss_function=config.loss,
+        wandb=wandb
     )
 
     wandb.log({"threshold": threshold})
@@ -336,7 +337,7 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     # Plot ROC curve
     plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}", wandb=wandb)
 
-def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
+def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, loss_function='mse', num_steps=1000, wandb):
     """
     Calculate the optimal threshold using the minimum between the spikes of normal and anomaly distributions.
 
@@ -415,11 +416,14 @@ def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, lo
     plt.xlabel('Reconstruction Error')
     plt.ylabel('Density')
     plt.legend()
+    wandb.log({"distribution_with_thresholds": wandb.Image(plt)})
     plt.show()
 
     return threshold
 
 
+
+################################################################
 ## Functions to plot reconstruction with original image and mask
 def get_dist_based_threshold(autoencoder, threshold_generator, loss_function='mse', num_steps=1000):
     """
@@ -504,7 +508,7 @@ def calculate_reconstruction_error(original, reconstructed):
     """Calculate the mean squared error between original and reconstructed images."""
     return np.mean((original - reconstructed) ** 2)
 
-def predict_anomaly_and_plot(autoencoder, threshold_generator, image_path, mask_dir, loss_function='mse', threshold=0.02):
+def predict_anomaly_and_plot(autoencoder, threshold_generator, image_path, mask_dir, loss_function='mse', threshold=0.02, wandb=None):
     """
     Predict if an image is an anomaly based on reconstruction error
     and plot original, reconstructed, and mask images.
@@ -578,6 +582,7 @@ def predict_anomaly_and_plot(autoencoder, threshold_generator, image_path, mask_
     plt.axis("off")
     
     plt.suptitle(f"Reconstruction Error: {error:.4f}| Threshold: {threshold} | Anomaly: {'Yes' if is_anomaly else 'No'}")
+    wandb.log({"predict_anomaly_and_plot": wandb.Image(plt)})
     plt.show()
     
     return is_anomaly, error

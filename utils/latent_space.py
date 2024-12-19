@@ -57,7 +57,7 @@ def plot_latent_space(autoencoder, test_generator, wandb, layer_name='bottleneck
     wandb.log({"latent_space_plot" : wandb.Image(plt)})
     plt.show()
 
-def plot_3d_latent_space(autoencoder, test_generator, layer_name='bottleneck', n_components=3, angles=None):
+def plot_3d_latent_space(autoencoder, test_generator, layer_name='bottleneck', n_components=3, angles=None, wandb=None):
     """
     Extract latent representations, apply t-SNE, and plot the 3D latent space with class labels from multiple angles.
 
@@ -127,4 +127,5 @@ def plot_3d_latent_space(autoencoder, test_generator, layer_name='bottleneck', n
         # Add legend
         plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc='upper left')
         plt.tight_layout()
+        wandb.log({f"latent_3d_space_plot{angle}" : wandb.Image(plt)})
         plt.show()

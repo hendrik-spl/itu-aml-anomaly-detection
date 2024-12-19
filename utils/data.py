@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
@@ -15,7 +16,10 @@ def load_data_with_test_split(category: str, batch_size: int, test_split: float 
         A tuple containing the training data generator, validation data generator, 
         test data generator, and threshold (validation of test set) data generator.
     """
-    data_dir = f'../../data/{category}'
+    # Check if the first path exists, otherwise use the second path
+    data_dir = f'data/{category}'
+    if not os.path.exists(data_dir):
+        data_dir = f'../../data/{category}'
     train_dir = f'{data_dir}/train'
     test_dir = f'{data_dir}/test'
 

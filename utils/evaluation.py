@@ -337,7 +337,7 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     # Plot ROC curve
     plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}", wandb=wandb)
 
-def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, loss_function='mse', num_steps=1000, wandb):
+def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, wandb, loss_function='mse', num_steps=1000):
     """
     Calculate the optimal threshold using the minimum between the spikes of normal and anomaly distributions.
 

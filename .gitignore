@@ -166,6 +166,7 @@ cython_debug/
 data/*
 !data/GET_DATA.md
 !data/screw
+!data/metal_nut
 wandb/
 
 *.csv

@@ -3,7 +3,28 @@ from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, C
 
 from utils.loss import return_loss
 
-def vanilla_autoencoder(input_shape, optimizer, latent_dim, loss):
+def get_model(config):
+    if config.model_name == "vanilla_autoencoder":
+        return vanilla_autoencoder(
+            input_shape=(256, 256, 3), 
+            optimizer=config.optimizer,
+            latent_dim=config.latent_dim, 
+            loss=config.loss,
+            batch_norm=config.batch_norm,
+        )
+    elif config.model_name == "deep_autoencoder":
+        return deep_autoencoder(
+            input_shape=(256, 256, 3), 
+            optimizer=config.optimizer,
+            latent_dim=config.latent_dim, 
+            loss=config.loss,
+            batch_norm=config.batch_norm,
+            dropout_value=config.dropout_value,
+        )
+    else:
+        raise ValueError(f"Model name '{config.model_name}' not recognized.")
+
+def vanilla_autoencoder(input_shape, optimizer, latent_dim, loss, batch_norm):
     """
         input_shape (tuple): Shape of the input images (height, width, channels).
         latent_dim (int): Dimension of the latent space.
@@ -14,19 +35,19 @@ def vanilla_autoencoder(input_shape, optimizer, latent_dim, loss):
 
     # Encoder with reduced complexity
     x = Conv2D(32, (3, 3), padding='same')(input_img)
-    x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = LeakyReLU()(x)
     x = MaxPooling2D((2, 2), padding='same')(x)  # (128, 128, 32)
     x = Dropout(0.3)(x)
 
     x = Conv2D(64, (3, 3), padding='same')(x)
-    x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = LeakyReLU()(x)
     x = MaxPooling2D((2, 2), padding='same')(x)  # (64, 64, 64)
     x = Dropout(0.3)(x)
 
     x = Conv2D(128, (3, 3), padding='same')(x)
-    x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = LeakyReLU()(x)
     x = MaxPooling2D((2, 2), padding='same')(x)  # (32, 32, 128)
     x = Dropout(0.3)(x)
@@ -34,7 +55,7 @@ def vanilla_autoencoder(input_shape, optimizer, latent_dim, loss):
     # Bottleneck
     x = Flatten()(x)  # Flattened Shape: (32 * 32 * 128,)
     encoded = Dense(latent_dim)(x)  # Latent space size reduced to 526
-    encoded = BatchNormalization()(encoded)
+    encoded = BatchNormalization()(encoded) if batch_norm else encoded
     encoded = LeakyReLU(name='bottleneck')(encoded)
 
     # Decoder with reduced complexity
@@ -43,12 +64,12 @@ def vanilla_autoencoder(input_shape, optimizer, latent_dim, loss):
 
     x = UpSampling2D((2, 2))(x)  # (64, 64, 128)
     x = Conv2D(64, (3, 3), padding='same')(x)
-    x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = LeakyReLU()(x)
 
     x = UpSampling2D((2, 2))(x)  # (128, 128, 64)
     x = Conv2D(32, (3, 3), padding='same')(x)
-    x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = LeakyReLU()(x)
 
     x = UpSampling2D((2, 2))(x)  # (256, 256, 32)
@@ -70,43 +91,35 @@ def deep_autoencoder(input_shape=(256, 256, 3), optimizer="adam",latent_dim=512,
 
     # Encoder
     x = Conv2D(32, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(input_img)
-    if batch_norm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = Dropout(dropout_value)(x)
 
     x = Conv2D(32, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(x)
-    if batch_norm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = Dropout(dropout_value)(x)
 
     x = Conv2D(32, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
-    if batch_norm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = Dropout(dropout_value)(x)
 
     x = Conv2D(64, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(x)
-    if batch_norm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = Dropout(dropout_value)(x)
 
     x = Conv2D(64, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
-    if batch_norm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = Dropout(dropout_value)(x)
 
     x = Conv2D(128, (4, 4), strides=2, activation=LeakyReLU(alpha=0.2), padding="same")(x)
-    if batch_norm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = Dropout(dropout_value)(x)
 
     x = Conv2D(64, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
-    if batch_norm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = Dropout(dropout_value)(x)
 
     x = Conv2D(32, (3, 3), strides=1, activation=LeakyReLU(alpha=0.2), padding="same")(x)
-    if batch_norm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batch_norm else x
     x = Dropout(dropout_value)(x)
 
     encoded = Conv2D(latent_dim, (8, 8), strides=1, activation="linear", padding="valid")(x)

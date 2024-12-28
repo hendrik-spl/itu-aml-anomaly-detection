@@ -13,28 +13,32 @@ from utils.data import load_data_with_test_split
 from utils.plots import plot_reconstructions, plot_history
 from utils.latent_space import plot_latent_space
 from utils.evaluation import evaluate_autoencoder_with_threshold_generator
-from utils.models import vanilla_autoencoder
+from utils.models import get_model
 
-wandb_project = "autoencoder2"
-wandb_tags = [ 
+wandb_project = "ablation-study"
+wandb_tags = [
     "autoencoder", 
     "test" # remove this tage when running the actual training
 ]
 
 config = {
-        "comment" : "test wandb config",
-        "epochs" : 1,
-        "loss" : 'mae', # available options: 'mse', 'mae', 'ssim', 'ssim_l1', 'dssim'
-        "optimizer" : 'adam',
-        "dropout_value" : 0.0, # setting this value to 0 will basically remove dropout layers
-        "rotation_range" : 90,
-        "batch_size" : 16,
+        "comment" : "test dropout",
+        "model_name" : "vanilla_autoencoder", # available options: "vanilla_autoencoder", "deep_autoencoder", ...
+        # Taken as given
+        "data_class" : "screw", # available options: "screw", "metal_nut" and more
+        "epochs" : 200,
         "latent_dim" : 512,
-        "data_class" : "metal_nut",
+        "optimizer" : 'adam',
+        "batch_size" : 16,
+        "rotation_range" : 90,
+        # Hyperparameters
+        "batch_norm" : True,
+        "dropout_value" : 0.2, # setting this value to 0 will basically remove dropout layers
+        "loss" : 'mae', # available options: 'mse', 'mae', 'ssim'
         }
 
 def main(config):
-    set_seed(1234)
+    set_seed(42)
 
     wandb.init(project=wandb_project, tags=wandb_tags, config=config)
     wandb.define_metric('val_loss', summary='min')
@@ -49,12 +53,7 @@ def main(config):
         )
 
     # Build model
-    autoencoder = vanilla_autoencoder(
-        input_shape=(256, 256, 3), 
-        optimizer=config.optimizer,
-        latent_dim=config.latent_dim, 
-        loss=config.loss
-    )
+    autoencoder = get_model(config)
 
     # Callbacks
     callbacks = [

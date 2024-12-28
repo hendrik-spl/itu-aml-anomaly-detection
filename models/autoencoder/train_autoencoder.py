@@ -59,7 +59,7 @@ def main(config):
     callbacks = [
         EarlyStopping(monitor='val_loss', mode='min', patience=20),
         WandbMetricsLogger(),
-        WandbModelCheckpoint(filepath=f"models/checkpoints/{config.comment}.keras", verbose=1, save_best_only=True)
+        WandbModelCheckpoint(filepath=f"../models/checkpoints/{config.comment}.keras", verbose=1, save_best_only=True)
     ]
 
     # Train model

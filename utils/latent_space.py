@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from sklearn.manifold import TSNE
 from tensorflow.keras.models import Model
+from sklearn.manifold import TSNE
+from mpl_toolkits.mplot3d import Axes3D
 
 def plot_latent_space(autoencoder, test_generator, wandb, layer_name='bottleneck', n_components=2):
     """
@@ -68,12 +69,6 @@ def plot_3d_latent_space(autoencoder, test_generator, layer_name='bottleneck', n
     n_components (int): Number of dimensions for t-SNE (default: 3).
     angles (list of tuples): List of (elevation, azimuth) angles to view the plot.
     """
-    from sklearn.manifold import TSNE
-    from tensorflow.keras.models import Model
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    import matplotlib.patches as mpatches
 
     # Default angles if none provided
     if angles is None:

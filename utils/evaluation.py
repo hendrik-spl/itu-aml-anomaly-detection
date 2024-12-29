@@ -13,30 +13,8 @@ import os
 
 
 # https://medium.com/@majpaw1996/anomaly-detection-in-computer-vision-with-ssim-ae-2d5256ffc06b
-def dssim_loss(y_true, y_pred):
-    return 1/2 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, max_val=1.0))/2
-
 def ssim_loss(y_true, y_pred):
     return 1 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, max_val=1.0))
-
-def ssim_l1_loss(y_true, y_pred, alpha=0.5):
-    """
-        y_true: Ground truth images.
-        y_pred: Predicted images.
-        alpha: Weighting factor for SSIM and L1 loss. 
-               alpha = 0.5 means equal weight for both losses.
-    """    
-    # Compute SSIM loss
-    ssim = tf.image.ssim(y_true, y_pred, 1.0)
-    ssim_loss = 1 - tf.reduce_mean(ssim)
-    
-    # Compute L1 loss
-    l1_loss = tf.reduce_mean(tf.abs(y_true - y_pred))
-    
-    # Combine SSIM and L1 losses
-    combined_loss = alpha * ssim_loss + (1 - alpha) * l1_loss
-    
-    return combined_loss
 
 
 def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_function: str) -> List[float]:
@@ -46,7 +24,7 @@ def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_functi
     Parameters:
     images (np.ndarray): The original images.
     reconstructions (np.ndarray): The reconstructed images.
-    loss_function (str): The loss function to use ('mae', 'mse', 'dssim_loss', 'ssim_loss', 'ssim_l1_loss').
+    loss_function (str): The loss function to use ('mae', 'mse', 'ssim').
 
     Returns:
     List[float]: A list of errors for each image in the batch.
@@ -55,23 +33,9 @@ def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_functi
         return np.mean(np.abs(reconstructions - images), axis=(1, 2, 3)).tolist()
     elif loss_function == 'mse':
         return np.mean(np.square(reconstructions - images), axis=(1, 2, 3)).tolist()
-    elif loss_function == 'dssim':
-        dssim_values = 1 / 2 - tf.image.ssim(images, reconstructions, max_val=1.0) / 2
-        return dssim_values.numpy().tolist()
     elif loss_function == 'ssim':
         ssim_values = 1 - tf.image.ssim(images, reconstructions, max_val=1.0)
         return ssim_values.numpy().tolist()
-    elif loss_function == 'ssim_l1':
-        # Compute SSIM for each image
-        ssim = tf.image.ssim(images, reconstructions, 1.0)
-        ssim_loss = 1 - ssim  # Batch-wise SSIM loss
-        
-        # Compute L1 loss for each image
-        l1_loss = tf.reduce_mean(tf.abs(images - reconstructions), axis=(1, 2, 3))
-        
-        # Combine SSIM and L1 losses
-        combined_loss = 0.5 * ssim_loss + 0.5 * l1_loss
-        return combined_loss.numpy().tolist()
     else:
         raise ValueError(f"Unknown loss function: {loss_function}. Please define a function to calculate the error.")
 
@@ -265,7 +229,7 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
     print(classification_report(true_labels, predicted_labels, target_names=['Normal', 'Anomaly']))
 
     # Step 10: Plot confusion matrix
-    plot_confusion_matrix(conf_matrix, ground_truth_labels, f"Confusion Matrix - Test Set - {config.comment}")
+    plot_confusion_matrix(conf_matrix, ground_truth_labels, f"Confusion Matrix - Test Set - {config.comment}", wandb=wandb)
 
     # Step 11: Plot ROC curve and calculate AUC
     plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}", wandb=wandb)
@@ -596,7 +560,7 @@ def plot_images_with_info(autoencoder: Model, test_generator: ImageDataGenerator
     Parameters:
     autoencoder (Model): The autoencoder model.
     test_generator (ImageDataGenerator): The test data generator.
-    loss_function (str): The loss function to use ('mae', 'mse', 'dssim', 'ssim', 'ssim_l1').
+    loss_function (str): The loss function to use ('mae', 'mse', 'ssim').
     threshold (float): The threshold for anomaly detection based on reconstruction error.
     n_images (int): The number of images to plot.
     title (str): The title of the plot.

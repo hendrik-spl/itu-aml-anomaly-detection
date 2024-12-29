@@ -22,20 +22,20 @@ wandb_tags = [
 ]
 
 config = {
-        "comment" : "test dropout",
-        "model_name" : "vanilla_autoencoder", # available options: "vanilla_autoencoder", "deep_autoencoder", ...
-        # Taken as given
-        "data_class" : "screw", # available options: "screw", "metal_nut" and more
-        "epochs" : 200,
-        "latent_dim" : 512,
-        "optimizer" : 'adam',
-        "batch_size" : 16,
-        "rotation_range" : 90,
-        # Hyperparameters
-        "batch_norm" : True,
-        "dropout_value" : 0.2, # setting this value to 0 will basically remove dropout layers
-        "loss" : 'mae', # available options: 'mse', 'mae', 'ssim'
-        }
+    "comment" : "test dropout",
+    "model_name" : "vanilla_autoencoder", # available options: "vanilla_autoencoder", "deep_autoencoder", ...
+    # Taken as given
+    "data_class" : "screw", # available options: "screw", "metal_nut" and more
+    "epochs" : 200,
+    "latent_dim" : 512,
+    "optimizer" : 'adam',
+    "batch_size" : 16,
+    "rotation_range" : 90,
+    # Hyperparameters
+    "batch_norm" : True,
+    "dropout_value" : 0.2, # setting this value to 0 will basically remove dropout layers
+    "loss" : 'mae', # available options: 'mse', 'mae', 'ssim'
+}
 
 def main(config):
     set_seed(42)

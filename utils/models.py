@@ -21,6 +21,17 @@ def get_model(config):
             batch_norm=config.batch_norm,
             dropout_value=config.dropout_value,
         )
+    elif config.model_name == "autoencoder":
+        return autoencoder(
+            input_shape=(256, 256, 3), 
+            optimizer=config.optimizer,
+            latent_dim=config.latent_dim, 
+            loss=config.loss,
+            batch_norm=config.batch_norm,
+            dropout_value=config.dropout_value,
+            decoder_type=config.decoder_type,
+            num_blocks=config.num_blocks
+        )
     else:
         raise ValueError(f"Model name '{config.model_name}' not recognized.")
 

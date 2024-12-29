@@ -8,6 +8,10 @@ from keras.callbacks import EarlyStopping
 import wandb
 from wandb.integration.keras import WandbMetricsLogger, WandbModelCheckpoint
 
+parent_dir = os.path.abspath(os.path.join(os.getcwd(), '../..'))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 from utils.helper import set_seed
 from utils.data import load_data_with_test_split
 from utils.plots import plot_reconstructions, plot_history
@@ -15,18 +19,18 @@ from utils.latent_space import plot_latent_space
 from utils.evaluation import evaluate_autoencoder_with_threshold_generator
 from utils.models import get_model
 
-wandb_project = "ablation-study"
+wandb_project = "itu-aml-project"
 wandb_tags = [
     "autoencoder", 
     "test" # remove this tage when running the actual training
 ]
 
 config = {
-    "comment" : "test dropout",
-    "model_name" : "vanilla_autoencoder", # available options: "vanilla_autoencoder", "deep_autoencoder", ...
+    "comment" : "test run",
+    "model_name" : "autoencoder", # available options: "autoencoder","vanilla_autoencoder", "deep_autoencoder", ...
     # Taken as given
     "data_class" : "screw", # available options: "screw", "metal_nut" and more
-    "epochs" : 200,
+    "epochs" : 10,
     "latent_dim" : 512,
     "optimizer" : 'adam',
     "batch_size" : 16,
@@ -35,8 +39,8 @@ config = {
     "decoder_type" : 'upsampling',
     "num_blocks" : 3, 
     "batch_norm" : True,
-    "dropout_value" : 0.2, # setting this value to 0 will basically remove dropout layers
-    "loss" : 'mae', # available options: 'mse', 'mae', 'ssim'
+    "dropout_value" : 0.0, # setting this value to 0 will basically remove dropout layers
+    "loss" : 'mae', # available options: 'mae', 'mse', 'ssim'
 }
 
 def main(config):

@@ -162,7 +162,7 @@ def plot_roc_curve(true_labels: np.ndarray, predicted_scores: np.ndarray, title:
     wandb.log({"roc_curve": wandb.Image(plt)})
     plt.show()
 
-def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGenerator, test_generator: ImageDataGenerator, wandb, config, threshold_type = 'simple') -> None:
+def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGenerator, test_generator: ImageDataGenerator, wandb, config, ) -> None:
     """
     Evaluate the autoencoder model.
 
@@ -224,7 +224,8 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
         f"Reconstruction Error Distribution - Test Set - {config.comment}",
         "Reconstruction Error",
         "Frequency",
-        f"Threshold at {config.threshold_percentage}th percentile: {threshold:.4f}"
+        f"Threshold at {config.threshold_percentage}th percentile: {threshold:.4f}",
+        wandb
     )
     print(classification_report(true_labels, predicted_labels, target_names=['Normal', 'Anomaly']))
 
@@ -235,7 +236,7 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
     plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}", wandb=wandb)
 
 ## Two next functions are used to evaluate the AE based on distributions and the sampled test set 
-def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, threshold_generator, config, wandb):
+def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, threshold_generator, validation_generator,config, wandb):
     """
     Evaluate the autoencoder using a threshold computed from the threshold generator.
 
@@ -250,11 +251,14 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
         autoencoder=autoencoder,
         threshold_generator=threshold_generator,
         loss_function=config.loss,
-        wandb=wandb
+        wandb=wandb,
+        validation_generator=validation_generator,
+        test_generator=test_generator,
+        config=config
     )
 
-    wandb.log({"threshold": threshold})
 
+    wandb.log({"threshold": threshold})
     print(f"Optimal Threshold: {threshold:.4f}")
 
     # Evaluate on the test set
@@ -301,7 +305,7 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     # Plot ROC curve
     plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}", wandb=wandb)
 
-def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, wandb, loss_function='mse', num_steps=1000):
+def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator,validation_generator,test_generator, wandb, config, loss_function='mse', num_steps=1000):
     """
     Calculate the optimal threshold using the minimum between the spikes of normal and anomaly distributions.
 
@@ -360,6 +364,15 @@ def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator, wa
     # Ensure that the anomaly spike is to the right of the normal spike
     if anomaly_peak_index <= normal_peak_index:
         print(f"Warning - Assumption violated: Anomaly peak is not to the right of normal peak.")
+        print("Triggering `evaluate_autoencoder` as fallback evaluation.")
+        evaluate_autoencoder(
+            autoencoder=autoencoder,
+            validation_generator=validation_generator,
+            test_generator=test_generator,
+            wandb=wandb,
+            config=config
+        )
+        raise SystemExit("Function terminated due to invalid assumption in threshold calculation.")
 
     # Define the region between the spikes
     x_between_spikes = x[normal_peak_index:anomaly_peak_index]

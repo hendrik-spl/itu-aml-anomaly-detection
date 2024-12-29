@@ -26,7 +26,7 @@ def get_model(config):
 
 
 
-def base_autoencoder(input_shape, optimizer, latent_dim, loss, batch_norm, decoder_type='upsampling'):
+def autoencoder(input_shape, optimizer, latent_dim, loss, dropout_value, batch_norm, decoder_type, num_blocks):
     """
     Parameters:
         input_shape (tuple): Shape of the input images (height, width, channels).
@@ -35,65 +35,45 @@ def base_autoencoder(input_shape, optimizer, latent_dim, loss, batch_norm, decod
         loss (str): Loss used to train the autoencoder. Options: 'mse', 'ssim', etc.
         batch_norm (bool): Whether to apply batch normalization.
         decoder_type (str): 'upsampling' or 'transposed' for decoder layers.
+        num_blocks (int): Number of convolutional blocks in both the encoder and decoder.
     """
+    filters = [32 * (2 ** i) for i in range(num_blocks)]  # Dynamically set filters based on num_blocks
+
     # Encoder
-    input_img = Input(shape=input_shape)
-
-    x = Conv2D(32, (3, 3), padding='same')(input_img)
-    x = BatchNormalization()(x) if batch_norm else x
-    x = LeakyReLU()(x)
-    x = MaxPooling2D((2, 2), padding='same')(x)
-    x = Dropout(0.3)(x)
-
-    x = Conv2D(64, (3, 3), padding='same')(x)
-    x = BatchNormalization()(x) if batch_norm else x
-    x = LeakyReLU()(x)
-    x = MaxPooling2D((2, 2), padding='same')(x)
-    x = Dropout(0.3)(x)
-
-    x = Conv2D(128, (3, 3), padding='same')(x)
-    x = BatchNormalization()(x) if batch_norm else x
-    x = LeakyReLU()(x)
-    x = MaxPooling2D((2, 2), padding='same')(x)
-    x = Dropout(0.3)(x)
-
+    input_img = Input(shape=input_shape, name = 'input_layer')
+    x = input_img
+    
+    for i in range(num_blocks):
+        x = Conv2D(filters[i], (3, 3), padding='same', name = f'Enc_Conv2D_{i+1}')(x)
+        x = BatchNormalization(name = f'Enc_BathchNorm_{i+1}')(x) if batch_norm else x
+        x = LeakyReLU(name = f'Enc_LeakyReLU_{i+1}')(x)
+        x = MaxPooling2D((2, 2), padding='same',name = f'Enc_MaxPooling2D_{i+1}')(x)
+        x = Dropout(0.3, name = f'Enc_Dropout_{i+1}')(x)
+    
     # Bottleneck
-    x = Flatten()(x)
-    encoded = Dense(latent_dim)(x)
-    encoded = BatchNormalization()(encoded) if batch_norm else encoded
-    encoded = LeakyReLU(name='bottleneck')(encoded)
-
+    x = Conv2D(filters[-1], (3, 3), padding='same', activation='linear', name='Bottleneck_Conv2D')(x)  # Dynamic filter size
+    x = Flatten(name='Bottleneck_Flatten')(x)  # Convert to 1D vector
+    encoded = Dense(latent_dim, activation='linear', name='bottleneck')(x)  # Final latent vector
+    
     # Decoder
-    x = Dense(32 * 32 * 128)(encoded)
-    x = Reshape((32, 32, 128))(x)
-
-    if decoder_type == 'upsampling':
-        x = UpSampling2D((2, 2))(x)
-        x = Conv2D(64, (3, 3), padding='same')(x)
-    elif decoder_type == 'transposed':
-        x = Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same')(x)
+    x = Dense((input_shape[0] // (2 ** num_blocks)) * (input_shape[1] // (2 ** num_blocks)) * filters[-1], name='Dec_Dense')(encoded)
+    x = Reshape((input_shape[0] // (2 ** num_blocks), input_shape[1] // (2 ** num_blocks), filters[-1]), name='Dec_Reshape')(x)
     
-    x = BatchNormalization()(x) if batch_norm else x
-    x = LeakyReLU()(x)
-
-    if decoder_type == 'upsampling':
-        x = UpSampling2D((2, 2))(x)
-        x = Conv2D(32, (3, 3), padding='same')(x)
-    elif decoder_type == 'transposed':
-        x = Conv2DTranspose(32, (3, 3), strides=(2, 2), padding='same')(x)
+    for i in reversed(range(num_blocks)):
+        if decoder_type == 'upsampling':
+            x = UpSampling2D((2, 2), name = f'Dec_UpSampling2D_{num_blocks*2-i}')(x)
+            x = Conv2D(filters[i], (3, 3), padding='same', name = f'Dec_Conv2D_{num_blocks*2-i}')(x)
+        elif decoder_type == 'transposed':
+            x = Conv2DTranspose(filters[i], (3, 3), strides=(2, 2), padding='same', name = f'Dec_ConvTrans_{num_blocks*2-i}')(x)
+        x = BatchNormalization(name = f'Dec_BatchNorm_{num_blocks*2-i}')(x) if batch_norm else x
+        x = LeakyReLU(name = f'Dec_LeakyReLU_{num_blocks*2-i}')(x)
     
-    x = BatchNormalization()(x) if batch_norm else x
-    x = LeakyReLU()(x)
-
-    if decoder_type == 'upsampling':
-        x = UpSampling2D((2, 2))(x)
-        x = Conv2D(input_shape[2], (3, 3), activation='sigmoid', padding='same')(x)
-    elif decoder_type == 'transposed':
-        x = Conv2DTranspose(input_shape[2], (3, 3), strides=(2, 2), activation='sigmoid', padding='same')(x)
-
+    # Final Output
+    x = Conv2D(input_shape[2], (3, 3), activation='sigmoid', padding='same', name = f'Output_Conv2D')(x)
+    
     # Autoencoder Model
     autoencoder = Model(input_img, x)
-    autoencoder.compile(optimizer=optimizer, loss=return_loss(loss))
+    autoencoder.compile(optimizer=optimizer, loss=loss)
     return autoencoder
 
 

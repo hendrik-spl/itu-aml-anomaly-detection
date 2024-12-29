@@ -31,7 +31,9 @@ config = {
     "optimizer" : 'adam',
     "batch_size" : 16,
     "rotation_range" : 90,
-    # Hyperparameters
+    # Parameters
+    "decoder_type" : 'upsampling',
+    "num_blocks" : 3, 
     "batch_norm" : True,
     "dropout_value" : 0.2, # setting this value to 0 will basically remove dropout layers
     "loss" : 'mae', # available options: 'mse', 'mae', 'ssim'

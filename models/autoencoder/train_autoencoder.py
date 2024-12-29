@@ -21,16 +21,17 @@ from utils.models import get_model
 
 wandb_project = "itu-aml-project"
 wandb_tags = [
-    "autoencoder", 
-    "test" # remove this tage when running the actual training
+    "autoencoder"
+    #"test" # remove this tage when running the actual training
 ]
 
 config = {
-    "comment" : "test run",
+    "comment" : "first run",
     "model_name" : "autoencoder", # available options: "autoencoder","vanilla_autoencoder", "deep_autoencoder", ...
+    "threshold_percentage": 0.8,
     # Taken as given
     "data_class" : "screw", # available options: "screw", "metal_nut" and more
-    "epochs" : 10,
+    "epochs" : 50,
     "latent_dim" : 512,
     "optimizer" : 'adam',
     "batch_size" : 16,
@@ -39,7 +40,7 @@ config = {
     "decoder_type" : 'upsampling',
     "num_blocks" : 3, 
     "batch_norm" : True,
-    "dropout_value" : 0.0, # setting this value to 0 will basically remove dropout layers
+    "dropout_value" : 0, # setting this value to 0 will basically remove dropout layers
     "loss" : 'mae', # available options: 'mae', 'mse', 'ssim'
 }
 
@@ -60,6 +61,7 @@ def main(config):
 
     # Build model
     autoencoder = get_model(config)
+    autoencoder.summary()
 
     # Callbacks
     callbacks = [
@@ -85,6 +87,7 @@ def main(config):
         autoencoder=autoencoder,
         test_generator=test_generator,
         threshold_generator=threshold_generator,
+        validation_generator=validation_generator,
         config=config,
         wandb=wandb
     )
@@ -92,5 +95,7 @@ def main(config):
     # Plot latent space
     plot_latent_space(autoencoder, test_generator, wandb, layer_name='bottleneck')
 
+    wandb.finish()
+    
 if __name__ == "__main__":    
     main(config=config)

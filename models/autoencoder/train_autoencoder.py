@@ -3,7 +3,7 @@ import sys
 sys.path.insert(0, os.getcwd())
 
 import tensorflow as tf
-from keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 
 import wandb
 from wandb.integration.keras import WandbMetricsLogger, WandbModelCheckpoint
@@ -26,7 +26,7 @@ wandb_tags = [
 ]
 
 config = {
-    "comment" : "first run",
+    "comment" : "test new checkpoint setup",
     "model_name" : "autoencoder", # available options: "autoencoder","vanilla_autoencoder", "deep_autoencoder", ...
     "threshold_percentage": 80,
     # Taken as given
@@ -53,6 +53,8 @@ def main(config):
     wandb.define_metric('val_loss', summary='min')
     config = wandb.config
 
+    checkpoint_path = f"../models/checkpoints/{wandb.run.name}.keras"
+
     # Load data
     train_generator, validation_generator, test_generator, threshold_generator = load_data_with_test_split(
         category=config.data_class,
@@ -68,8 +70,8 @@ def main(config):
     # Callbacks
     callbacks = [
         EarlyStopping(monitor='val_loss', mode='min', patience=40),
+        ModelCheckpoint(filepath=checkpoint_path, monitor="val_loss", mode="min", verbose=1, save_best_only=True),
         WandbMetricsLogger(),
-        WandbModelCheckpoint(filepath=f"../models/checkpoints/{config.comment}.keras", verbose=1, save_best_only=True)
     ]
 
     # Train model
@@ -79,6 +81,9 @@ def main(config):
         validation_data=validation_generator,
         callbacks=callbacks
     )
+    
+    # Load the best model (based on validation loss)
+    autoencoder = tf.keras.models.load_model(checkpoint_path)
 
     # Plot results
     plot_history(comment=config.comment, history=history, wandb=wandb)
@@ -97,7 +102,7 @@ def main(config):
     # Plot latent space
     plot_latent_space(autoencoder, test_generator, wandb, layer_name='bottleneck')
 
-    wandb.finish()
+    # wandb.finish() # only needed for jupyter notebooks
     
 if __name__ == "__main__":    
     main(config=config)

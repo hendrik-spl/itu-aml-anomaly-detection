@@ -63,7 +63,7 @@ def main(config):
 
     # Build model
     autoencoder = get_model(config)
-    autoencoder.summary()
+    # autoencoder.summary()
 
     # Callbacks
     callbacks = [

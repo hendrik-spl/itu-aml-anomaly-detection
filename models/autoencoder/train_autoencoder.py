@@ -19,7 +19,7 @@ from utils.latent_space import plot_latent_space
 from utils.evaluation import evaluate_autoencoder_with_threshold_generator
 from utils.models import get_model
 
-wandb_project = "itu-aml-project"
+wandb_project = "ablation-study"
 wandb_tags = [
     "autoencoder"
     #"test" # remove this tage when running the actual training

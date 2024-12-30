@@ -28,20 +28,22 @@ wandb_tags = [
 config = {
     "comment" : "first run",
     "model_name" : "autoencoder", # available options: "autoencoder","vanilla_autoencoder", "deep_autoencoder", ...
-    "threshold_percentage": 0.8,
+    "threshold_percentage": 80,
     # Taken as given
     "data_class" : "screw", # available options: "screw", "metal_nut" and more
-    "epochs" : 50,
+    "epochs" : 100,
     "latent_dim" : 512,
     "optimizer" : 'adam',
     "batch_size" : 16,
     "rotation_range" : 90,
     # Parameters
+    "downsampling": 'maxpooling',
+    "bottleneck": 'dense',
     "decoder_type" : 'upsampling',
     "num_blocks" : 3, 
     "batch_norm" : True,
-    "dropout_value" : 0, # setting this value to 0 will basically remove dropout layers
-    "loss" : 'mae', # available options: 'mae', 'mse', 'ssim'
+    "dropout_value" : 0.3, # setting this value to 0 will basically remove dropout layers
+    "loss" : 'mse', # available options: 'mae', 'mse', 'ssim'
 }
 
 def main(config):
@@ -65,7 +67,7 @@ def main(config):
 
     # Callbacks
     callbacks = [
-        EarlyStopping(monitor='val_loss', mode='min', patience=20),
+        EarlyStopping(monitor='val_loss', mode='min', patience=40),
         WandbMetricsLogger(),
         WandbModelCheckpoint(filepath=f"../models/checkpoints/{config.comment}.keras", verbose=1, save_best_only=True)
     ]

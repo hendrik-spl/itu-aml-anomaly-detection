@@ -35,8 +35,6 @@ def get_model(config):
     else:
         raise ValueError(f"Model name '{config.model_name}' not recognized.")
 
-
-
 def autoencoder(input_shape, optimizer, latent_dim, loss, dropout_value, batch_norm, decoder_type, num_blocks):
     """
     Parameters:
@@ -59,7 +57,7 @@ def autoencoder(input_shape, optimizer, latent_dim, loss, dropout_value, batch_n
         x = BatchNormalization(name = f'Enc_BathchNorm_{i+1}')(x) if batch_norm else x
         x = LeakyReLU(name = f'Enc_LeakyReLU_{i+1}')(x)
         x = MaxPooling2D((2, 2), padding='same',name = f'Enc_MaxPooling2D_{i+1}')(x)
-        x = Dropout(0.3, name = f'Enc_Dropout_{i+1}')(x)
+        x = Dropout(dropout_value, name = f'Enc_Dropout_{i+1}')(x)
     
     # Bottleneck
     x = Conv2D(filters[-1], (3, 3), padding='same', activation='linear', name='Bottleneck_Conv2D')(x)  # Dynamic filter size

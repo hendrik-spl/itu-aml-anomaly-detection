@@ -34,14 +34,14 @@ config = {
     "epochs" : 100,
     "latent_dim" : 512,
     "optimizer" : 'adam',
+    "downsampling": 'maxpooling',
+    "bottleneck": 'dense',
     "batch_size" : 16,
     "rotation_range" : 90,
     # Parameters
-    "downsampling": 'maxpooling',
-    "bottleneck": 'dense',
-    "decoder_type" : 'upsampling',
-    "num_blocks" : 3, 
-    "batch_norm" : True,
+    "decoder_type" : 'upsampling', # available options: 'upsampling', 'transposed'
+    "num_blocks" : 3, # number of blocks in the encoder/decoder
+    "batch_norm" : True, # available options: True, False
     "dropout_value" : 0.3, # setting this value to 0 will basically remove dropout layers
     "loss" : 'mse', # available options: 'mae', 'mse', 'ssim'
 }

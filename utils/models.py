@@ -46,7 +46,7 @@ def autoencoder(input_shape, optimizer, latent_dim, loss, dropout_value, batch_n
         decoder_type (str): 'upsampling' or 'transposed' for decoder layers.
         num_blocks (int): Number of convolutional blocks in both the encoder and decoder.
     """
-    filters = [32 * (2 ** i) for i in range(num_blocks)]  # Dynamically set filters based on num_blocks
+    filters = [32 * (2 ** i) for i in range(min(num_blocks, 5))] + [512] * (num_blocks - 5)  # Dynamically set filters based on num_blocks and cap at 512
 
     # Encoder
     input_img = Input(shape=input_shape, name = 'input_layer')
@@ -60,9 +60,10 @@ def autoencoder(input_shape, optimizer, latent_dim, loss, dropout_value, batch_n
         x = Dropout(dropout_value, name = f'Enc_Dropout_{i+1}')(x)
     
     # Bottleneck
-    x = Conv2D(filters[-1], (3, 3), padding='same', activation='linear', name='Bottleneck_Conv2D')(x)  # Dynamic filter size
-    x = Flatten(name='Bottleneck_Flatten')(x)  # Convert to 1D vector
-    encoded = Dense(latent_dim, activation='linear', name='bottleneck')(x)  # Final latent vector
+    x = Flatten(name='bottleneck_flatten')(x)  # Flattened Shape: (32 * 32 * 128,)
+    encoded = Dense(latent_dim, name='bottleneck_dense')(x)  # Latent space size reduced to 526
+    encoded = BatchNormalization(name='bottleneck_batchnorm')(encoded)
+    encoded = LeakyReLU(name='bottleneck')(encoded)
     
     # Decoder
     x = Dense((input_shape[0] // (2 ** num_blocks)) * (input_shape[1] // (2 ** num_blocks)) * filters[-1], name='Dec_Dense')(encoded)

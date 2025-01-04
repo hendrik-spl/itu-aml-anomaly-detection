@@ -1,8 +1,5 @@
 import tensorflow as tf
 
-def dssim_loss(y_true, y_pred):
-    return 1/2 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, max_val=1.0))/2
-
 def ssim_loss(y_true, y_pred):
     return 1 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, max_val=1.0))
 
@@ -34,7 +31,5 @@ def return_loss(loss):
         return ssim_loss
     elif loss == 'ssim_l1':
         return ssim_l1_loss
-    elif loss == 'dssim':
-        return dssim_loss
     else:
         raise ValueError(f"Unknown loss function: {loss}")

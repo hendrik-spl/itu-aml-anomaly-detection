@@ -83,7 +83,7 @@ def autoencoder(input_shape, optimizer, latent_dim, loss, dropout_value, batch_n
     
     # Autoencoder Model
     autoencoder = Model(input_img, x)
-    autoencoder.compile(optimizer=optimizer, loss=loss)
+    autoencoder.compile(optimizer=optimizer, loss=return_loss(loss))
     return autoencoder
 
 
@@ -202,5 +202,5 @@ def deep_autoencoder(input_shape=(256, 256, 3), optimizer="adam",latent_dim=512,
     decoded = Conv2DTranspose(input_shape[2], (4, 4), strides=2, activation="sigmoid", padding="same")(x)
 
     autoencoder = Model(input_img, decoded)
-    autoencoder.compile(optimizer=optimizer, loss=loss)
+    autoencoder.compile(optimizer=optimizer, loss=return_loss(loss))
     return autoencoder

@@ -43,7 +43,7 @@ config = {
     "num_blocks" : 8, # number of blocks in the encoder/decoder
     "batch_norm" : True, # available options: True, False
     "dropout_value" : 0, # setting this value to 0 will basically remove dropout layers
-    "loss" : 'mae', # available options: 'mae', 'mse', 'ssim'
+    "loss" : 'mse', # available options: 'mae', 'mse', 'ssim'
 }
 
 def main(config):

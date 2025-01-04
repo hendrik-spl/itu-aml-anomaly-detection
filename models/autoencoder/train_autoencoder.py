@@ -26,7 +26,7 @@ wandb_tags = [
 ]
 
 config = {
-    "comment" : "run 10 - ",
+    "comment" : "run 10 - mse",
     "model_name" : "autoencoder", # available options: "autoencoder","vanilla_autoencoder", "deep_autoencoder", ...
     "threshold_percentage": 80,
     # Taken as given

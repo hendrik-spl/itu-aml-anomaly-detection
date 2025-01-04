@@ -372,7 +372,6 @@ def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator,val
             wandb=wandb,
             config=config
         )
-        raise SystemExit("Function terminated due to invalid assumption in threshold calculation.")
 
     # Define the region between the spikes
     x_between_spikes = x[normal_peak_index:anomaly_peak_index]
@@ -397,8 +396,6 @@ def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator,val
     plt.show()
 
     return threshold
-
-
 
 ################################################################
 ## Functions to plot reconstruction with original image and mask

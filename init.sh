@@ -58,6 +58,7 @@ if [ ! -d "$REPO_DIR" ]; then
 else
     echo_info "Repository already cloned. Pulling latest changes..."
     cd "$REPO_DIR"
+    git reset --hard HEAD
     git pull
 fi
 

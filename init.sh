@@ -48,6 +48,14 @@ else
     exit 1
 fi
 
+echo_info "Checking GPU availability..."
+if command -v nvidia-smi > /dev/null 2>&1; then
+    echo_info "NVIDIA GPU found:"
+    nvidia-smi
+else
+    echo_error "No GPU detected or driver missing."
+fi
+
 # Clone the repository if not already cloned
 REPO_DIR="itu-aml-anomaly-detection"  # Replace with your actual repo name
 REPO_URL="https://github.com/hendrik-spl/itu-aml-anomaly-detection.git"  # Replace with your repo URL

@@ -17,7 +17,7 @@ def return_loss(loss):
     else:
         raise ValueError(f"Unknown loss function: {loss}")
 
-def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_function: str) -> List[float]:
+def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_function: str):
     """
     Calculate error between original images and their reconstructions.
 
@@ -34,6 +34,7 @@ def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_functi
     elif loss_function == 'mse':
         return np.mean(np.square(reconstructions - images), axis=(1, 2, 3)).tolist()
     elif loss_function == 'ssim':
-        return ssim_loss(images, reconstructions).numpy().tolist()
+        ssim_values = 1 - tf.image.ssim(images, reconstructions, max_val=1.0)
+        return ssim_values.numpy().tolist()
     else:
         raise ValueError(f"Unknown loss function: {loss_function}. Please define a function to calculate the error.")

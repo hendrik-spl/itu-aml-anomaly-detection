@@ -11,34 +11,7 @@ from scipy.stats import gaussian_kde
 import cv2
 import os
 
-
-# https://medium.com/@majpaw1996/anomaly-detection-in-computer-vision-with-ssim-ae-2d5256ffc06b
-def ssim_loss(y_true, y_pred):
-    return 1 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, max_val=1.0))
-
-
-def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_function: str) -> List[float]:
-    """
-    Calculate error between original images and their reconstructions.
-
-    Parameters:
-    images (np.ndarray): The original images.
-    reconstructions (np.ndarray): The reconstructed images.
-    loss_function (str): The loss function to use ('mae', 'mse', 'ssim').
-
-    Returns:
-    List[float]: A list of errors for each image in the batch.
-    """
-    if loss_function == 'mae':
-        return np.mean(np.abs(reconstructions - images), axis=(1, 2, 3)).tolist()
-    elif loss_function == 'mse':
-        return np.mean(np.square(reconstructions - images), axis=(1, 2, 3)).tolist()
-    elif loss_function == 'ssim':
-        ssim_values = 1 - tf.image.ssim(images, reconstructions, max_val=1.0)
-        return ssim_values.numpy().tolist()
-    else:
-        raise ValueError(f"Unknown loss function: {loss_function}. Please define a function to calculate the error.")
-
+from loss import calculate_error
 
 def get_errors_and_labels(autoencoder: Model, generator: ImageDataGenerator, loss_function: str) -> Tuple[np.ndarray, np.ndarray]:
     """

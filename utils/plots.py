@@ -34,6 +34,7 @@ def plot_history(comment, history, wandb):
     print(f'Best train_loss: {np.min(history.history["loss"]).round(4)}')
     print(f'Best val_loss: {np.min(history.history["val_loss"]).round(4)}')
     print(f'Last improvement of val_loss at epoch: {np.argmin(history.history["val_loss"])+1}')
+    wandb.log({"last_improvement_epoch": np.argmin(history.history["val_loss"])+1})
 
 def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator, n_images: int, title, wandb) -> None:
     """

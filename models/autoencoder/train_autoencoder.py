@@ -21,17 +21,18 @@ from utils.models import get_model
 
 wandb_project = "ablation-study"
 wandb_tags = [
-    "autoencoder"
+    "autoencoder",
+    "reproducible"
     "test" # remove this tage when running the actual training
-]
+] 
 
 config = {
-    "comment" : "test reprod ucloud",
+    "comment" : "recreate best run",
     "model_name" : "autoencoder", # available options: "autoencoder","vanilla_autoencoder", "deep_autoencoder", ...
     "threshold_percentage": 80,
     # Taken as given
     "data_class" : "screw", # available options: "screw", "metal_nut" and more
-    "epochs" : 1,
+    "epochs" : 200,
     "latent_dim" : 512,
     "optimizer" : 'adam',
     "downsampling": 'maxpooling',
@@ -43,7 +44,7 @@ config = {
     "num_blocks" : 8, # number of blocks in the encoder/decoder
     "batch_norm" : True, # available options: True, False
     "dropout_value" : 0, # setting this value to 0 will basically remove dropout layers
-    "loss" : 'ssim', # available options: 'mae', 'mse', 'ssim'
+    "loss" : 'mae', # available options: 'mae', 'mse', 'ssim'
 }
 
 def main(config):

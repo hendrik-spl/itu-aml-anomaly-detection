@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from sklearn.metrics import confusion_matrix, classification_report, roc_curve, roc_auc_score, f1_score
+import seaborn as sns
+from typing import List, Tuple
 
 def plot_history(comment, history, wandb):
     """
@@ -146,4 +149,89 @@ def plot_images_with_info(autoencoder: Model, test_generator: ImageDataGenerator
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     wandb.log({"plot_image_with_info": wandb.Image(plt)})
+    plt.show()
+
+def plot_single_histogram_with_threshold(errors: List[float], threshold: float, title: str, xlabel: str, ylabel: str, threshold_label: str) -> None:
+    """
+    Plot a single histogram with a threshold line.
+
+    Parameters:
+    errors (List[float]): The errors to plot.
+    threshold (float): The threshold value.
+    title (str): The title of the plot.
+    xlabel (str): The label for the x-axis.
+    ylabel (str): The label for the y-axis.
+    threshold_label (str): The label for the threshold line.
+    """
+    plt.hist(errors, bins=50, alpha=0.5)
+    plt.axvline(threshold, color='r', linestyle='--', label=threshold_label)
+    plt.legend()
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.show()
+
+def plot_double_histogram_with_threshold(normal_errors: List[float], anomaly_errors: List[float], threshold: float, title: str, xlabel: str, ylabel: str, threshold_label: str, wandb) -> None:
+    """
+    Plot two histograms (normal and anomaly errors) with a threshold line.
+
+    Parameters:
+    normal_errors (List[float]): The normal errors to plot.
+    anomaly_errors (List[float]): The anomaly errors to plot.
+    threshold (float): The threshold value.
+    title (str): The title of the plot.
+    xlabel (str): The label for the x-axis.
+    ylabel (str): The label for the y-axis.
+    threshold_label (str): The label for the threshold line.
+    """
+    plt.hist(normal_errors, bins=50, alpha=0.5, label='Normal')
+    plt.hist(anomaly_errors, bins=50, alpha=0.5, label='Anomaly')
+    plt.axvline(threshold, color='r', linestyle='--', label=threshold_label)
+    plt.legend()
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    wandb.log({"error_distr_plot": wandb.Image(plt)})
+    plt.show()
+
+def plot_confusion_matrix(confusion_matrix: np.ndarray, labels: List[str], title: str, wandb) -> None:
+    """
+    Plot a confusion matrix.
+
+    Parameters:
+    confusion_matrix (np.ndarray): The confusion matrix to plot.
+    labels (List[str]): The labels for the confusion matrix.
+    title (str): The title of the plot.
+    """
+    plt.figure(figsize=(8, 8))
+    sns.heatmap(confusion_matrix, annot=True, fmt='d', cmap='Blues', cbar=False, xticklabels=labels, yticklabels=labels)
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title(title)
+    wandb.log({"confusion_matrix": wandb.Image(plt)})
+
+    plt.show()
+
+def plot_roc_curve(true_labels: np.ndarray, predicted_scores: np.ndarray, title: str, wandb) -> None:
+    """
+    Plot the ROC curve.
+
+    Parameters:
+    true_labels (np.ndarray): The true labels.
+    predicted_scores (np.ndarray): The predicted scores.
+    title (str): The title of the plot.
+    """
+    fpr, tpr, thresholds = roc_curve(true_labels, predicted_scores)
+    auc = roc_auc_score(true_labels, predicted_scores)
+    wandb.log({"auc": auc})
+
+    plt.plot(fpr, tpr, label=f'AUC = {auc:.4f}')
+    plt.plot([0, 1], [0, 1], linestyle='--', color='red')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title(title)
+    plt.legend(loc='lower right')
+    wandb.log({"roc_curve": wandb.Image(plt)})
     plt.show()

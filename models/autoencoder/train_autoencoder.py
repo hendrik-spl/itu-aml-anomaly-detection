@@ -22,8 +22,8 @@ from utils.models import get_model
 wandb_project = "ablation-study"
 wandb_tags = [
     "autoencoder",
-    "reproducible"
-    "test" # remove this tage when running the actual training
+    "reproducible",
+    # "test" # remove this tage when running the actual training
 ] 
 
 config = {

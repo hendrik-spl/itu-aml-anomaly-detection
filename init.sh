@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# init.sh
 
 # Exit immediately if a command exits with a non-zero status
 set -e
-
 
 # Function to display info messages
 function echo_info {
@@ -83,7 +83,7 @@ fi
 
 # Activate virtual environment
 echo_info "Activating virtual environment..."
-source venv/bin/activate
+source .venv/bin/activate
 
 # Upgrade pip
 echo_info "Upgrading pip..."
@@ -92,5 +92,10 @@ pip install --upgrade pip
 # Install requirements
 echo_info "Installing dependencies..."
 pip install -r requirements.txt
+
+# Ensuring reproducibility
+echo_info "Setting environment variable for reproducibility..."
+export TF_DETERMINISTIC_OPS=1
+export TF_CUDNN_DETERMINISTIC=1
 
 echo_info "Initialization complete."

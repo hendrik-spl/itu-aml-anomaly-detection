@@ -7,26 +7,6 @@ def ssim_loss(y_true, y_pred):
     # https://medium.com/@majpaw1996/anomaly-detection-in-computer-vision-with-ssim-ae-2d5256ffc06b
     return 1 - tf.reduce_mean(tf.image.ssim(y_true, y_pred, max_val=1.0))
 
-@keras.saving.register_keras_serializable()
-def ssim_l1_loss(y_true, y_pred, alpha=0.5):
-    """
-        y_true: Ground truth images.
-        y_pred: Predicted images.
-        alpha: Weighting factor for SSIM and L1 loss. 
-               alpha = 0.5 means equal weight for both losses.
-    """    
-    # Compute SSIM loss
-    ssim = tf.image.ssim(y_true, y_pred, 1.0)
-    ssim_loss = 1 - tf.reduce_mean(ssim)
-    
-    # Compute L1 loss
-    l1_loss = tf.reduce_mean(tf.abs(y_true - y_pred))
-    
-    # Combine SSIM and L1 losses
-    combined_loss = alpha * ssim_loss + (1 - alpha) * l1_loss
-    
-    return combined_loss
-
 def return_loss(loss):
     if loss == 'mse':
         return 'mean_squared_error'
@@ -34,8 +14,6 @@ def return_loss(loss):
         return 'mean_absolute_error'
     elif loss == 'ssim':
         return ssim_loss
-    elif loss == 'ssim_l1':
-        return ssim_l1_loss
     else:
         raise ValueError(f"Unknown loss function: {loss}")
 

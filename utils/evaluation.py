@@ -467,12 +467,3 @@ def get_dist_based_threshold(autoencoder, threshold_generator, loss_function='ms
     threshold = x_between_spikes[optimal_threshold_index]
 
     return threshold
-
-def preprocess_image(image_path, target_size=(256, 256)):
-    """Load and preprocess an image for the autoencoder."""
-    img = cv2.imread(image_path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = cv2.resize(img, target_size)
-    img = img.astype('float32') / 255.0  # Normalize to [0, 1] and set to float32
-    img = np.expand_dims(img, axis=0)  # Add batch dimension
-    return img

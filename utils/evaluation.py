@@ -372,28 +372,28 @@ def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator,val
             wandb=wandb,
             config=config
         )
+    else:
+        # Define the region between the spikes
+        x_between_spikes = x[normal_peak_index:anomaly_peak_index]
+        kde_overlap_between_spikes = np.abs(normal_kde(x_between_spikes) - anomaly_kde(x_between_spikes))
 
-    # Define the region between the spikes
-    x_between_spikes = x[normal_peak_index:anomaly_peak_index]
-    kde_overlap_between_spikes = np.abs(normal_kde(x_between_spikes) - anomaly_kde(x_between_spikes))
+        # Find the threshold in this region
+        optimal_threshold_index = np.argmin(kde_overlap_between_spikes)
+        threshold = x_between_spikes[optimal_threshold_index]
 
-    # Find the threshold in this region
-    optimal_threshold_index = np.argmin(kde_overlap_between_spikes)
-    threshold = x_between_spikes[optimal_threshold_index]
-
-    # Plot error distributions and threshold
-    plt.figure(figsize=(8, 6))
-    plt.plot(x, normal_density, label='Normal Errors', color='blue')
-    plt.plot(x, anomaly_density, label='Anomaly Errors', color='orange')
-    plt.axvline(threshold, color='red', linestyle='--', label=f'Threshold: {threshold:.4f}')
-    plt.scatter(x[normal_peak_index], normal_density[normal_peak_index], color='blue', label='Normal Peak')
-    plt.scatter(x[anomaly_peak_index], anomaly_density[anomaly_peak_index], color='orange', label='Anomaly Peak')
-    plt.title('Error Distributions with Optimal Threshold Between Spikes')
-    plt.xlabel('Reconstruction Error')
-    plt.ylabel('Density')
-    plt.legend()
-    wandb.log({"distribution_with_thresholds": wandb.Image(plt)})
-    plt.show()
+        # Plot error distributions and threshold
+        plt.figure(figsize=(8, 6))
+        plt.plot(x, normal_density, label='Normal Errors', color='blue')
+        plt.plot(x, anomaly_density, label='Anomaly Errors', color='orange')
+        plt.axvline(threshold, color='red', linestyle='--', label=f'Threshold: {threshold:.4f}')
+        plt.scatter(x[normal_peak_index], normal_density[normal_peak_index], color='blue', label='Normal Peak')
+        plt.scatter(x[anomaly_peak_index], anomaly_density[anomaly_peak_index], color='orange', label='Anomaly Peak')
+        plt.title('Error Distributions with Optimal Threshold Between Spikes')
+        plt.xlabel('Reconstruction Error')
+        plt.ylabel('Density')
+        plt.legend()
+        wandb.log({"distribution_with_thresholds": wandb.Image(plt)})
+        plt.show()
 
     return threshold
 

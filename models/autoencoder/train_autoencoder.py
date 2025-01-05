@@ -70,7 +70,7 @@ def main(config):
 
     # Callbacks
     callbacks = [
-        # EarlyStopping(monitor='val_loss', mode='min', patience=40),
+        EarlyStopping(monitor='val_loss', mode='min', patience=40),
         ModelCheckpoint(filepath=checkpoint_path, monitor="val_loss", mode="min", verbose=1, save_best_only=True),
         WandbMetricsLogger(),
     ]

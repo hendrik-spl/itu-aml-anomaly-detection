@@ -105,6 +105,7 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
         percentage=config.threshold_percentage
     )
 
+    wandb.log({"selected_threshold_logic": "manual"})
     wandb.log({"threshold": threshold})
     print(f"Manual Threshold used: {threshold:.4f}")
 
@@ -173,8 +174,9 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     if threshold is None:
         return
 
+    wandb.log({"selected_threshold_logic": "automated"})
     wandb.log({"threshold": threshold})
-    print(f"Optimal Threshold: {threshold:.4f}")
+    print(f"Automated Threshold: {threshold:.4f}")
 
     # Step 2: Get errors and labels for the test set
     test_errors, true_labels = get_errors_and_labels(

@@ -23,16 +23,16 @@ wandb_project = "ablation-study"
 wandb_tags = [
     "autoencoder",
     "reproducible",
-    # "test" # remove this tage when running the actual training
+    "test" # remove this tage when running the actual training
 ] 
 
 config = {
-    "comment" : "recreate best run",
+    "comment" : "testy test",
     "model_name" : "autoencoder", # available options: "autoencoder","vanilla_autoencoder", "deep_autoencoder", ...
     "threshold_percentage": 80,
     # Taken as given
     "data_class" : "screw", # available options: "screw", "metal_nut" and more
-    "epochs" : 200,
+    "epochs" : 1,
     "latent_dim" : 512,
     "optimizer" : 'adam',
     "downsampling": 'maxpooling',
@@ -67,6 +67,9 @@ def main(config):
     # Build model
     autoencoder = get_model(config)
     autoencoder.summary()
+
+    # Log Model Size
+    wandb.log({"model_size": autoencoder.count_params()})
 
     # Callbacks
     callbacks = [

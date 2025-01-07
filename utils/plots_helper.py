@@ -4,6 +4,7 @@ from sklearn.metrics import roc_curve, roc_auc_score
 import seaborn as sns
 
 def plot_double_histogram_with_threshold(normal_errors, anomaly_errors, threshold: float, title: str, xlabel: str, ylabel: str, threshold_label: str, wandb) -> None:
+    plt.figure(figsize=(8, 6))
     plt.hist(normal_errors, bins=50, alpha=0.5, label='Normal')
     plt.hist(anomaly_errors, bins=50, alpha=0.5, label='Anomaly')
     plt.axvline(threshold, color='r', linestyle='--', label=threshold_label)
@@ -27,6 +28,7 @@ def plot_roc_curve(true_labels: np.ndarray, predicted_scores: np.ndarray, title:
     fpr, tpr, thresholds = roc_curve(true_labels, predicted_scores)
     auc = roc_auc_score(true_labels, predicted_scores)
     wandb.log({"auc": auc})
+    plt.figure(figsize=(8, 8))
     plt.plot(fpr, tpr, label=f'AUC = {auc:.4f}')
     plt.plot([0, 1], [0, 1], linestyle='--', color='red')
     plt.xlim([0, 1])

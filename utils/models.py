@@ -2,6 +2,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Conv2DTranspose, LeakyReLU, BatchNormalization, Flatten, Dense, Reshape, Dropout
 
 from utils.loss import return_loss
+from tensorflow.keras.applications import MobileNetV2
 
 def get_model(config):
     if config.model_name == "vanilla_autoencoder":
@@ -32,8 +33,67 @@ def get_model(config):
             decoder_type=config.decoder_type,
             num_blocks=config.num_blocks
         )
+    elif config.model_name == "mobilenet_autoencoder":
+        return mobilenet_autoencoder(
+            input_shape=(256, 256, 3), 
+            optimizer=config.optimizer,
+            latent_dim=config.latent_dim, 
+            loss=config.loss,
+            batch_norm=config.batch_norm,
+            decoder_type=config.decoder_type,
+            num_blocks=config.num_blocks
+        )
     else:
         raise ValueError(f"Model name '{config.model_name}' not recognized.")
+
+def mobilenet_autoencoder(input_shape, optimizer, latent_dim, loss, batch_norm, decoder_type, num_blocks):
+    """
+    Parameters:
+        input_shape (tuple): Shape of the input images (height, width, channels).
+        optimizer: Optimizer used for training.
+        latent_dim (int): Dimension of the latent space.
+        loss (str): Loss used to train the autoencoder. Options: 'mse', 'ssim', etc.
+        batch_norm (bool): Whether to apply batch normalization.
+        decoder_type (str): 'upsampling' or 'transposed' for decoder layers.
+        num_blocks (int): Number of convolutional blocks in both the encoder and decoder.
+    """
+    filters = [32 * (2 ** i) for i in range(min(num_blocks, 5))] + [512] * (num_blocks - 5)  # Dynamically set filters based on num_blocks and cap at 512
+    
+    # Encoder
+    input_img = Input(shape=input_shape, name = 'input_layer')
+    base_model = MobileNetV2(input_shape=input_shape, include_top=False, weights='imagenet')
+
+    for layer in base_model.layers:
+        layer.trainable = False
+
+    x = base_model(input_img)
+
+    # Bottleneck
+    x = Flatten(name='bottleneck_flatten')(x)
+    encoded = Dense(latent_dim, name='bottleneck_dense')(x)
+    encoded = BatchNormalization(name='bottleneck_batchnorm')(encoded)
+    encoded = LeakyReLU(name='bottleneck')(encoded)
+
+    # Decoder
+    x = Dense((input_shape[0] // (2 ** num_blocks)) * (input_shape[1] // (2 ** num_blocks)) * filters[-1], name='Dec_Dense')(encoded)
+    x = Reshape((input_shape[0] // (2 ** num_blocks), input_shape[1] // (2 ** num_blocks), filters[-1]), name='Dec_Reshape')(x)
+    
+    for i in reversed(range(num_blocks)):
+        if decoder_type == 'upsampling':
+            x = UpSampling2D((2, 2), name = f'Dec_UpSampling2D_{num_blocks*2-i}')(x)
+            x = Conv2D(filters[i], (3, 3), padding='same', name = f'Dec_Conv2D_{num_blocks*2-i}')(x)
+        elif decoder_type == 'transposed':
+            x = Conv2DTranspose(filters[i], (3, 3), strides=(2, 2), padding='same', name = f'Dec_ConvTrans_{num_blocks*2-i}')(x)
+        x = BatchNormalization(name = f'Dec_BatchNorm_{num_blocks*2-i}')(x) if batch_norm else x
+        x = LeakyReLU(name = f'Dec_LeakyReLU_{num_blocks*2-i}')(x)
+    
+    # Final Output
+    x = Conv2D(input_shape[2], (3, 3), activation='sigmoid', padding='same', name = f'Output_Conv2D')(x)
+    
+    # Autoencoder Model
+    autoencoder = Model(input_img, x)
+    autoencoder.compile(optimizer=optimizer, loss=return_loss(loss))
+    return autoencoder
 
 def autoencoder(input_shape, optimizer, latent_dim, loss, dropout_value, batch_norm, decoder_type, num_blocks):
     """
@@ -85,8 +145,6 @@ def autoencoder(input_shape, optimizer, latent_dim, loss, dropout_value, batch_n
     autoencoder = Model(input_img, x)
     autoencoder.compile(optimizer=optimizer, loss=return_loss(loss))
     return autoencoder
-
-
 
 def vanilla_autoencoder(input_shape, optimizer, latent_dim, loss, batch_norm):
     """

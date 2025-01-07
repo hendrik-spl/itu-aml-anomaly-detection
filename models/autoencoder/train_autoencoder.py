@@ -27,12 +27,12 @@ wandb_tags = [
 ] 
 
 config = {
-    "comment" : "testy test",
-    "model_name" : "autoencoder", # available options: "autoencoder","vanilla_autoencoder", "deep_autoencoder", ...
+    "comment" : "mobilenet",
+    "model_name" : "mobilenet_autoencoder", # available options: "autoencoder", "mobilenet_autoencoder", "vanilla_autoencoder", "deep_autoencoder"
     "threshold_percentage": 80,
     # Taken as given
     "data_class" : "screw", # available options: "screw", "metal_nut" and more
-    "epochs" : 1,
+    "epochs" : 200,
     "latent_dim" : 512,
     "optimizer" : 'adam',
     "downsampling": 'maxpooling',
@@ -43,8 +43,8 @@ config = {
     "decoder_type" : 'upsampling', # available options: 'upsampling', 'transposed'
     "num_blocks" : 8, # number of blocks in the encoder/decoder
     "batch_norm" : True, # available options: True, False
-    "dropout_value" : 0, # setting this value to 0 will basically remove dropout layers
-    "loss" : 'mae', # available options: 'mae', 'mse', 'ssim'
+    "dropout_value" : 0.4, # setting this value to 0 will basically remove dropout layers
+    "loss" : 'ssim', # available options: 'mae', 'mse', 'ssim'
 }
 
 def main(config):

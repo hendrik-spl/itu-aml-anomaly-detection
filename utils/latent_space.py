@@ -55,7 +55,7 @@ def plot_latent_space(autoencoder, test_generator, wandb, layer_name='bottleneck
     plt.xlabel('t-SNE Dimension 1')
     plt.ylabel('t-SNE Dimension 2')
     plt.tight_layout()
-    wandb.log({"latent_space_plot" : wandb.Image(plt)})
+    if wandb: wandb.log({"latent_space_plot" : wandb.Image(plt)})
     plt.show()
 
 def plot_3d_latent_space(autoencoder, test_generator, layer_name='bottleneck', n_components=3, angles=None, wandb=None):
@@ -122,5 +122,5 @@ def plot_3d_latent_space(autoencoder, test_generator, layer_name='bottleneck', n
         # Add legend
         plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc='upper left')
         plt.tight_layout()
-        wandb.log({f"latent_3d_space_plot{angle}" : wandb.Image(plt)})
+        if wandb: wandb.log({f"latent_3d_space_plot{angle}" : wandb.Image(plt)})
         plt.show()

@@ -7,7 +7,7 @@ import seaborn as sns
 
 from utils.evaluation import get_dist_based_threshold, calculate_error
 
-def plot_history(comment, history, wandb):
+def plot_history(comment, history, wandb = None):
     """
     Plot training history.
     
@@ -27,16 +27,16 @@ def plot_history(comment, history, wandb):
     plt.ylabel('Loss')
     plt.legend()
 
-    wandb.log({"history_plot": wandb.Image(plt)})
+    if wandb: wandb.log({"history_plot": wandb.Image(plt)})
 
     plt.show()
 
     print(f'Best train_loss: {np.min(history.history["loss"]).round(4)}')
     print(f'Best val_loss: {np.min(history.history["val_loss"]).round(4)}')
     print(f'Last improvement of val_loss at epoch: {np.argmin(history.history["val_loss"])+1}')
-    wandb.log({"last_improvement_epoch": np.argmin(history.history["val_loss"])+1})
+    if wandb: wandb.log({"last_improvement_epoch": np.argmin(history.history["val_loss"])+1})
 
-def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator, n_images: int, title, wandb) -> None:
+def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator, n_images: int, title, wandb = None) -> None:
     """
     Plot original and reconstructed images from the autoencoder.
 
@@ -60,7 +60,7 @@ def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator,
         axes[1, i].axis('off')
         axes[1, i].set_title('Reconstruction')
 
-    wandb.log({"reconstructions_plot": wandb.Image(plt)})
+    if wandb: wandb.log({"reconstructions_plot": wandb.Image(plt)})
 
     plt.show()
 
@@ -99,10 +99,10 @@ def plot_feature_map(autoencoder, layer_name, input_image, wandb):
 
     plt.subplots_adjust(top=0.85)  # Add space at the top of the figure
     plt.tight_layout()
-    wandb.log({f"Feature map{layer_name}": wandb.Image(plt)})
+    if wandb: wandb.log({f"Feature map{layer_name}": wandb.Image(plt)})
     plt.show()
 
-def plot_images_with_info(autoencoder: Model, test_generator: ImageDataGenerator,threshold_generator: ImageDataGenerator, loss_function: str, n_images: int, title: str, wandb) -> None:
+def plot_images_with_info(autoencoder: Model, test_generator: ImageDataGenerator,threshold_generator: ImageDataGenerator, loss_function: str, n_images: int, title: str, wandb = None) -> None:
     """
     Plot images from the test generator along with their labels, reconstruction error, and anomaly status.
 
@@ -148,7 +148,7 @@ def plot_images_with_info(autoencoder: Model, test_generator: ImageDataGenerator
         axes[i, 2].axis("off")
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    wandb.log({"plot_image_with_info": wandb.Image(plt)})
+    if wandb: wandb.log({"plot_image_with_info": wandb.Image(plt)})
     plt.show()
 
 def plot_single_histogram_with_threshold(errors, threshold: float, title: str, xlabel: str, ylabel: str, threshold_label: str) -> None:

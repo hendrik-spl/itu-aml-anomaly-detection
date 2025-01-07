@@ -23,7 +23,7 @@ def extract_errors_and_labels_from_generator(autoencoder: Model, generator: Imag
     all_labels = []
     
     generator.reset()
-    
+
     # Typically, len(generator) is the number of batches per epoch
     for _ in range(len(generator)):
         batch_images, batch_labels = next(generator)
@@ -82,7 +82,7 @@ def get_manual_threshold(errors: np.ndarray, percentage: int) -> float:
     return np.percentile(errors, percentage)
 
 # Function to evaluate the autoencoder model
-def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGenerator, test_generator: ImageDataGenerator, wandb, config, ) -> None:
+def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGenerator, test_generator: ImageDataGenerator, config, wandb = None) -> None:
     """
     Evaluate the autoencoder model.
 
@@ -97,23 +97,23 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
     validation_errors, _ = get_errors_and_labels(
         autoencoder=autoencoder, 
         generator=validation_generator, 
-        loss_function=config.loss
+        loss_function=config['loss']
     )
 
     threshold = get_manual_threshold(
         errors=validation_errors, 
-        percentage=config.threshold_percentage
+        percentage=config['threshold_percentage']
     )
 
-    wandb.log({"selected_threshold_logic": "manual"})
-    wandb.log({"threshold": threshold})
+    if wandb: wandb.log({"selected_threshold_logic": "manual"})
+    if wandb: wandb.log({"threshold": threshold})
     print(f"Manual Threshold used: {threshold:.4f}")
 
     # Step 2: Get errors and labels for the test set
     test_errors, true_labels = get_errors_and_labels(
         autoencoder=autoencoder, 
         generator=test_generator, 
-        loss_function=config.loss
+        loss_function=config['loss']
     )
 
     # Step 3: Predict labels based on the threshold
@@ -124,7 +124,7 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
 
     # Step 5: Calculate F1 score
     f1 = f1_score(true_labels, predicted_labels, labels=ground_truth_labels)
-    wandb.log({"f1_score": f1})
+    if wandb: wandb.log({"f1_score": f1})
 
     # Step 6: Split errors based on the true labels
     normal_errors = test_errors[true_labels == 0]
@@ -135,7 +135,7 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
         normal_errors,
         anomalous_errors,
         threshold,
-        f"Reconstruction Error Distribution - Test Set - {config.comment}",
+        f"Reconstruction Error Distribution - Test Set - {config['comment']}",
         "Reconstruction Error",
         "Frequency",
         f"Threshold: {threshold:.4f}",
@@ -143,13 +143,13 @@ def evaluate_autoencoder(autoencoder: Model, validation_generator: ImageDataGene
     )
 
     # Step 8: Plot confusion matrix
-    plot_confusion_matrix(conf_matrix, ground_truth_labels, f"Confusion Matrix - Test Set - {config.comment}", wandb=wandb)
+    plot_confusion_matrix(conf_matrix, ground_truth_labels, f"Confusion Matrix - Test Set - {config['comment']}", wandb=wandb)
 
     # Step 9: Plot ROC curve and calculate AUC
-    plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}", wandb=wandb)
+    plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config['comment']}", wandb=wandb)
 
 ## Two next functions are used to evaluate the AE based on distributions and the sampled test set 
-def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, threshold_generator, validation_generator,config, wandb):
+def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, threshold_generator, validation_generator,config, wandb=None):
     """
     Evaluate the autoencoder using a threshold computed from the threshold generator.
 
@@ -165,7 +165,7 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     threshold = get_dist_based_threshold_between_spikes(
         autoencoder=autoencoder,
         threshold_generator=threshold_generator,
-        loss_function=config.loss,
+        loss_function=config['loss'],
         wandb=wandb,
         validation_generator=validation_generator,
         test_generator=test_generator,
@@ -174,15 +174,15 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     if threshold is None:
         return
 
-    wandb.log({"selected_threshold_logic": "automated"})
-    wandb.log({"threshold": threshold})
+    if wandb: wandb.log({"selected_threshold_logic": "automated"})
+    if wandb: wandb.log({"threshold": threshold})
     print(f"Automated Threshold: {threshold:.4f}")
 
     # Step 2: Get errors and labels for the test set
     test_errors, true_labels = get_errors_and_labels(
         autoencoder=autoencoder,
         generator=test_generator,
-        loss_function=config.loss
+        loss_function=config['loss']
     )
 
     # Step 3: Predict labels based on the threshold
@@ -193,7 +193,7 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
 
     # Step 5: Calculate F1 score
     f1 = f1_score(true_labels, predicted_labels, labels=ground_truth_labels)
-    wandb.log({"f1_score": f1})
+    if wandb: wandb.log({"f1_score": f1})
 
     # Step 6: Split errors based on the true labels
     normal_errors = test_errors[true_labels == 0]
@@ -204,7 +204,7 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
         normal_errors,
         anomalous_errors,
         threshold,
-        f"Reconstruction Error Distribution - Test Set - {config.comment}",
+        f"Reconstruction Error Distribution - Test Set - {config['comment']}",
         "Reconstruction Error",
         "Frequency",
         f"Threshold: {threshold:.4f}",
@@ -215,11 +215,11 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     plot_confusion_matrix(
         confusion_matrix=conf_matrix, 
         labels=ground_truth_labels, 
-        title=f"Confusion Matrix - Test Set - {config.comment}",
+        title=f"Confusion Matrix - Test Set - {config['comment']}",
         wandb=wandb)
 
     # Step 9: Plot ROC curve and calculate AUC
-    plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config.comment}", wandb=wandb)
+    plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config['comment']}", wandb=wandb)
 
 # Function to evaluate the autoencoder based on the distribution of errors
 def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator,validation_generator,test_generator, wandb, config, loss_function, num_steps=1000):

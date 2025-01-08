@@ -11,7 +11,8 @@ if parent_dir not in sys.path:
 
 from utils.helper import set_seed
 from utils.data import load_data_with_test_split
-from utils.evaluation import evaluate_autoencoder, evaluate_autoencoder_with_threshold_generator
+from utils.latent_space import plot_latent_space, plot_combined_latent_space
+from utils.evaluation import evaluate_autoencoder, evaluate_autoencoder_with_threshold_generator, evaluate_autoencoder_with_KNN, evaluate_autoencoder_with_SVM
 
 # Here we parse the arguments to get the run_id of the model we want to evaluate
 def parse_args():
@@ -33,10 +34,10 @@ def get_wandb_data(model_name):
         raise FileNotFoundError(f"Model wandb logs with name {model_name} not found. Error: {e}")
 
 def get_model(model_name):
-    model_path = f"../models/checkpoints/{model_name}.keras"
+    model_path = f"../models/models/checkpoints/{model_name}.keras"
 
     if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file with name {model_name} not found.")
+        raise FileNotFoundError(f"Model file with name {model_name} not found at path: {model_path}")
     
     model = tf.keras.models.load_model(model_path)
     return model
@@ -56,7 +57,7 @@ def main(run_id):
 
     if model is None or config is None:
         raise FileNotFoundError(f"Check failed: Model with name {run_name} not found")
-
+    """
     evaluate_autoencoder(
         autoencoder=model,
         validation_generator=validation_generator,
@@ -71,7 +72,49 @@ def main(run_id):
         validation_generator=validation_generator,
         config=config
     )
+    
+    plot_latent_space(
+        autoencoder=model, 
+        test_generator=test_generator, 
+        layer_name='bottleneck'
+    )
+    
+    results = evaluate_autoencoder_with_KNN(
+        autoencoder=model,
+        validation_generator=validation_generator,
+        test_generator=test_generator,
+        layer_name='bottleneck',
+        anomaly_percentile=80,
+        k_neighbors=5,
+        config={'comment': 'KNN Evaluation with Validation Threshold'}
+    )"""
 
+    plot_latent_space(
+        autoencoder=model, 
+        generator=test_generator, 
+        layer_name='bottleneck',
+        generator_type='test'
+    )
+
+
+    plot_latent_space(
+        autoencoder=model, 
+        generator=validation_generator, 
+        layer_name='bottleneck',
+        generator_type='validation'
+    )
+
+    
+    plot_combined_latent_space(
+        autoencoder=model,
+        train_generator=train_generator,
+        validation_generator=validation_generator,
+        test_generator=test_generator,
+        layer_name='bottleneck'
+    )
+    
+
+    
     # @Jonathan: Add KNN evaluation here
 
 if __name__ == "__main__":

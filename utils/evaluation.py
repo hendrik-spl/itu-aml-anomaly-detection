@@ -14,6 +14,7 @@ from sklearn.metrics import (
 )
 from typing import Tuple
 from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import StandardScaler
 from scipy.stats import gaussian_kde
 from typing import Literal
 
@@ -233,45 +234,70 @@ def evaluate_autoencoder_with_threshold_generator(autoencoder, test_generator, t
     plot_roc_curve(true_labels, test_errors, f"ROC Curve - Test Set - {config['comment']}", wandb=wandb)
 
 # Function to evaluate the autoencoder based on the distribution of errors
-def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator,validation_generator,test_generator, wandb, config, loss_function, num_steps=1000):
+def get_dist_based_threshold_between_spikes(
+    autoencoder, 
+    threshold_generator, 
+    validation_generator, 
+    test_generator, 
+    wandb, 
+    config, 
+    loss_function, 
+    num_steps=1000
+):
     """
     Calculate the optimal threshold using the minimum between the spikes of normal and anomaly distributions.
 
     Args:
         autoencoder: Trained autoencoder model.
         threshold_generator (ImageDataGenerator): Generator for the threshold dataset.
+        validation_generator (ImageDataGenerator): Validation dataset generator.
+        test_generator (ImageDataGenerator): Test dataset generator.
+        wandb: Weights & Biases logger instance.
+        config: Configuration object containing model parameters.
         loss_function (str): Loss function for error calculation ('mse', 'mae').
         num_steps (int): Number of steps for evaluating KDE overlap.
-        bandwidth (float): Bandwidth for KDE.
 
     Assumption: 
-        Distribution peak of anomalous samples is on the right of the distribution peak of good samples. 
+        Distribution peak of anomalous samples is on the right of the distribution peak of good samples.
     """
-    # Iterate through the threshold generator to process all images
+    # Step 1: Calculate errors and labels from threshold generator
     errors, labels = get_errors_and_labels(autoencoder, threshold_generator, loss_function)
 
-    # Separate normal and anomaly errors
+    # Step 2: Separate normal and anomaly errors
     normal_errors = errors[labels == 0]
     anomaly_errors = errors[labels == 1]
 
-    # KDE with bandwidth adjustment
+    # Step 3: KDE with Gaussian Kernel Density Estimation
     normal_kde = gaussian_kde(normal_errors)
     anomaly_kde = gaussian_kde(anomaly_errors)
 
-    # Define the x-axis for KDE evaluation (entire range of errors)
+    # Define the x-axis for KDE evaluation
     x = np.linspace(errors.min(), errors.max(), num_steps)
 
-    # Find peaks (spikes) in the distributions
+    # Evaluate densities across the x-axis
     normal_density = normal_kde(x)
     anomaly_density = anomaly_kde(x)
 
+    # Find density peaks
     normal_peak_index = np.argmax(normal_density)
     anomaly_peak_index = np.argmax(anomaly_density)
 
-    # Ensure that the anomaly spike is to the right of the normal spike
+
+    # Step 4: Check assumption and determine threshold
     if anomaly_peak_index <= normal_peak_index:
         print(f"Warning - Assumption violated: Anomaly peak is not to the right of normal peak.")
         print("Triggering `evaluate_autoencoder` as fallback evaluation.")
+
+        plot_smooth_error_distribution(
+        x=x,
+        normal_density=normal_density,
+        anomaly_density=anomaly_density,
+        threshold=None,  # No threshold if assumption fails
+        normal_peak_index=normal_peak_index,
+        anomaly_peak_index=anomaly_peak_index,
+        wandb=wandb
+    )
+        
         evaluate_autoencoder(
             autoencoder=autoencoder,
             validation_generator=validation_generator,
@@ -289,17 +315,20 @@ def get_dist_based_threshold_between_spikes(autoencoder, threshold_generator,val
         optimal_threshold_index = np.argmin(kde_overlap_between_spikes)
         threshold = x_between_spikes[optimal_threshold_index]
 
+        # Plot smooth distribution with the threshold
         plot_smooth_error_distribution(
-            x = x,
-            normal_density = normal_density,
-            anomaly_density = anomaly_density,
+            x=x,
+            normal_density=normal_density,
+            anomaly_density=anomaly_density,
             threshold=threshold,
             normal_peak_index=normal_peak_index,
             anomaly_peak_index=anomaly_peak_index,
             wandb=wandb
         )
 
+        print(f"Optimal Threshold Found: {threshold:.4f}")
         return threshold
+
 
 ## Unused: Function to plot reconstruction with original image and mask
 def get_dist_based_threshold(autoencoder, threshold_generator, loss_function, num_steps=1000):
@@ -370,83 +399,118 @@ def get_dist_based_threshold(autoencoder, threshold_generator, loss_function, nu
 
 
 ### Evaluate with KNN
-def evaluate_with_KNN(autoencoder, generator, layer_name='bottleneck', n_neighbors=5, anomaly_percentile=95, config=None, wandb=None):
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (
+    confusion_matrix, 
+    f1_score, 
+    roc_auc_score, 
+    precision_recall_curve, 
+    auc, 
+    accuracy_score, 
+    roc_curve
+)
+import numpy as np
+from tensorflow.keras.models import Model
+
+
+def extract_latent_vectors_and_labels(autoencoder, generator, layer_name='bottleneck'):
     """
-    Evaluate an Autoencoder for anomaly detection using KNN in the latent space.
-    
-    Parameters:
-        autoencoder (Model): Trained autoencoder model.
-        generator (Iterator): Data generator for test data.
-        layer_name (str): Name of the bottleneck layer in the autoencoder.
-        n_neighbors (int): Number of neighbors for KNN.
-        anomaly_percentile (float): Percentile for anomaly thresholding.
-        config (dict): Configuration dictionary for labeling and comments.
-        wandb: Weights & Biases logger instance (optional).
-        
-    Returns:
-        dict: Dictionary containing evaluation metrics and plots.
+    Extract latent vectors and labels from a generator using the autoencoder.
     """
-    # Extract latent representations and reconstruction errors
     encoder = Model(inputs=autoencoder.input, outputs=autoencoder.get_layer(layer_name).output)
     latent_vectors = []
     labels = []
-    reconstruction_errors = []
-    
+
     steps = len(generator)
     for i in range(steps):
         batch_images, batch_labels = next(generator)
         latent = encoder.predict(batch_images, verbose=0)
-        reconstructions = autoencoder.predict(batch_images, verbose=0)
         
         latent_vectors.append(latent.reshape(latent.shape[0], -1))
         labels.append(np.argmax(batch_labels, axis=1))
-        batch_errors = np.mean(np.square(batch_images - reconstructions), axis=(1, 2, 3))
-        reconstruction_errors.extend(batch_errors)
     
     latent_vectors = np.concatenate(latent_vectors)
     labels = np.concatenate(labels)
-    reconstruction_errors = np.array(reconstruction_errors)
     
-    # Fit KNN on latent vectors
-    knn = NearestNeighbors(n_neighbors=n_neighbors)
+    return latent_vectors, labels
+
+
+def calculate_knn_distances(latent_vectors, n_neighbors=5):
+    """
+    Train kNN on latent vectors and return average kNN distances.
+    """
+    knn = NearestNeighbors(n_neighbors=n_neighbors, metric='euclidean')
     knn.fit(latent_vectors)
     distances, _ = knn.kneighbors(latent_vectors)
     avg_knn_distances = distances.mean(axis=1)
+    return avg_knn_distances
+
+
+def evaluate_autoencoder_with_KNN(autoencoder, validation_generator, test_generator, 
+                                  layer_name='bottleneck', anomaly_percentile=95, k_neighbors=5, config=None, wandb=None):
+    """
+    Evaluate an Autoencoder for anomaly detection using kNN distances in the latent space.
+
+    Parameters:
+        autoencoder (Model): Trained autoencoder model.
+        validation_generator (Iterator): Data generator for validation data (only normal samples).
+        test_generator (Iterator): Data generator for test data (normal + anomaly).
+        layer_name (str): Name of the bottleneck layer in the autoencoder.
+        anomaly_percentile (float): Percentile threshold for anomaly detection.
+        k_neighbors (int): Number of neighbors for kNN.
+        config (dict): Configuration dictionary for labeling and comments.
+        wandb: Weights & Biases logger instance (optional).
+
+    Returns:
+        dict: Dictionary containing evaluation metrics and plots.
+    """
+    ## 🟢 **Step 1: Extract Latent Vectors from Validation Set (Normal Only)**
+    val_latent_vectors, _ = extract_latent_vectors_and_labels(autoencoder, validation_generator, layer_name)
     
-    # Normalize scores and combine
-    reconstruction_errors = (reconstruction_errors - np.min(reconstruction_errors)) / (np.max(reconstruction_errors) - np.min(reconstruction_errors))
-    avg_knn_distances = (avg_knn_distances - np.min(avg_knn_distances)) / (np.max(avg_knn_distances) - np.min(avg_knn_distances))
-    anomaly_scores = reconstruction_errors + avg_knn_distances
+    scaler = StandardScaler()
+    val_latent_vectors_normalized = scaler.fit_transform(val_latent_vectors)
     
-    # Determine anomaly threshold based on percentile
-    threshold = np.percentile(anomaly_scores, anomaly_percentile)
-    predictions = (anomaly_scores > threshold).astype(int)
+    # Calculate kNN distances on validation set
+    val_knn_distances = calculate_knn_distances(val_latent_vectors_normalized, n_neighbors=k_neighbors)
+    
+    # Set threshold based on validation data
+    threshold = np.percentile(val_knn_distances, anomaly_percentile)
+    print(f"✅ Threshold set from validation set: {threshold:.4f}")
+    if wandb: wandb.log({"kNN_threshold": threshold})
+    
+    ## 🟡 **Step 2: Extract Latent Vectors from Test Set (Normal + Anomaly)**
+    test_latent_vectors, test_labels = extract_latent_vectors_and_labels(autoencoder, test_generator, layer_name)
+    test_latent_vectors_normalized = scaler.transform(test_latent_vectors)
+    
+    # Calculate kNN distances on test set
+    test_knn_distances = calculate_knn_distances(test_latent_vectors_normalized, n_neighbors=k_neighbors)
+    
+    # Binary predictions based on the threshold
+    predictions = (test_knn_distances > threshold).astype(int)
     
     # Map ground-truth labels
-    if 'good' in generator.class_indices:
-        true_labels = (labels != generator.class_indices['good']).astype(int)
+    if 'good' in test_generator.class_indices:
+        good_label_index = test_generator.class_indices['good']
+        true_labels = (test_labels != good_label_index).astype(int)
     else:
-        raise ValueError("Ensure that the generator contains a 'good' class for normal samples.")
+        raise ValueError("Ensure that the test generator contains a 'good' class for normal samples.")
     
-    # Evaluation metrics
+    ## 📊 **Step 3: Evaluate Performance**
     accuracy = accuracy_score(true_labels, predictions)
-    cm = confusion_matrix(true_labels, predictions)
     f1 = f1_score(true_labels, predictions)
-    auc_score = roc_auc_score(true_labels, anomaly_scores)
-    precision, recall, _ = precision_recall_curve(true_labels, anomaly_scores)
+    auc_score = roc_auc_score(true_labels, test_knn_distances)
+    precision, recall, _ = precision_recall_curve(true_labels, test_knn_distances)
     pr_auc = auc(recall, precision)
-    fpr, tpr, _ = roc_curve(true_labels, anomaly_scores)
+    cm = confusion_matrix(true_labels, predictions)
     
-    print(f"Accuracy: {accuracy:.4f}")
-    print(f"F1 Score: {f1:.4f}")
-    print(f"AUC: {auc_score:.4f}")
-    print(f"PR-AUC: {pr_auc:.4f}")
-    print("Confusion Matrix:\n", cm)
+    print(f"✅ Accuracy: {accuracy:.4f}")
+    print(f"✅ F1 Score: {f1:.4f}")
+    print(f"✅ AUC: {auc_score:.4f}")
+    print(f"✅ PR-AUC: {pr_auc:.4f}")
+    print("✅ Confusion Matrix:\n", cm)
     
-    # Call External Plotting Functions
-    if config is None:
-        config = {'comment': 'Default'}
-    
+    ## 📈 **Step 4: Visualization**
     # Plot Confusion Matrix
     plot_confusion_matrix(
         confusion_matrix=cm, 
@@ -457,25 +521,27 @@ def evaluate_with_KNN(autoencoder, generator, layer_name='bottleneck', n_neighbo
     
     # Plot ROC Curve
     plot_roc_curve(
-        true_labels=true_labels, 
-        test_errors=anomaly_scores, 
-        title=f"ROC Curve - Test Set - {config['comment']}", 
-        wandb=wandb
+        true_labels, 
+        test_knn_distances, 
+        title=f"ROC Curve - Test Set - {config['comment']}"
     )
     
-    # Plot Histogram with Threshold
-    normal_errors = anomaly_scores[true_labels == 0]
-    anomalous_errors = anomaly_scores[true_labels == 1]
+    # Plot Anomaly Score Distribution
+    normal_distances = test_knn_distances[true_labels == 0]
+    anomalous_distances = test_knn_distances[true_labels == 1]
     
-    plot_double_histogram_with_threshold(normal_errors,
-        anomalous_errors,
+    plot_double_histogram_with_threshold(
+        normal_distances,
+        anomalous_distances,
         threshold,
-        f"Reconstruction Error Distribution - Test Set - {config['comment']}",
-        "Reconstruction Error",
+        f"Anomaly Score Distribution - Test Set - {config['comment']}",
+        "Anomaly Score",
         "Frequency",
-        f"Threshold: {threshold:.4f}",
-        wandb
+        f"Threshold: {threshold:.4f}"
     )
+
+
+
 
 
 ### Make predictions   
@@ -511,7 +577,7 @@ def predict_anomaly(
     img_array = np.expand_dims(img_array, axis=0) / 255.0  # Normalize to [0, 1]
     
     if evaluation_method == 'autoencoder':
-        print("🔄 Using Autoencoder Evaluation Method...")
+        print("Using Autoencoder Evaluation Method...")
         reconstruction = autoencoder.predict(img_array, verbose=0)
         error = np.mean(np.square(img_array - reconstruction))
         
@@ -524,10 +590,10 @@ def predict_anomaly(
         threshold = get_manual_threshold(validation_errors, config['threshold_percentage'])
         
         prediction = "Anomaly" if error > threshold else "Normal"
-        print(f"🔍 Reconstruction Error: {error:.4f}, Threshold: {threshold:.4f}")
+        print(f"Reconstruction Error: {error:.4f}, Threshold: {threshold:.4f}")
     
     elif evaluation_method == 'threshold_generator':
-        print("🔄 Using Threshold Generator Evaluation Method...")
+        print("Using Threshold Generator Evaluation Method...")
         threshold = get_dist_based_threshold_between_spikes(
             autoencoder=autoencoder,
             threshold_generator=threshold_generator,
@@ -542,10 +608,10 @@ def predict_anomaly(
         error = np.mean(np.square(img_array - reconstruction))
         
         prediction = "Anomaly" if error > threshold else "Normal"
-        print(f"🔍 Reconstruction Error: {error:.4f}, Threshold: {threshold:.4f}")
+        print(f"Reconstruction Error: {error:.4f}, Threshold: {threshold:.4f}")
     
     elif evaluation_method == 'KNN':
-        print("🔄 Using KNN Evaluation Method...")
+        print("Using KNN Evaluation Method...")
         encoder = Model(inputs=autoencoder.input, outputs=autoencoder.get_layer(config['bottleneck_layer']).output)
         latent = encoder.predict(img_array, verbose=0)
         latent = latent.reshape(1, -1)
@@ -578,10 +644,10 @@ def predict_anomaly(
         threshold = np.percentile(anomaly_score, config['anomaly_percentile'])
         
         prediction = "Anomaly" if anomaly_score > threshold else "Normal"
-        print(f"🔍 Anomaly Score: {anomaly_score:.4f}, Threshold: {threshold:.4f}")
+        print(f"Anomaly Score: {anomaly_score:.4f}, Threshold: {threshold:.4f}")
     
     else:
         raise ValueError("Invalid evaluation method. Choose from 'autoencoder', 'threshold_generator', or 'KNN'.")
     
-    print(f"✅ Prediction: {prediction}")
+    print(f"Prediction: {prediction}")
     return prediction

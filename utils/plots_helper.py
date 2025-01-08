@@ -44,7 +44,7 @@ def plot_smooth_error_distribution(x: np.ndarray, normal_density: np.ndarray, an
     plt.figure(figsize=(8, 6))
     plt.plot(x, normal_density, label='Normal Errors', color='blue')
     plt.plot(x, anomaly_density, label='Anomaly Errors', color='orange')
-    plt.axvline(threshold, color='red', linestyle='--', label=f'Threshold: {threshold:.4f}')
+    if threshold: plt.axvline(threshold, color='red', linestyle='--', label=f'Threshold: {threshold:.4f}')
     plt.scatter(x[normal_peak_index], normal_density[normal_peak_index], color='blue', label='Normal Peak')
     plt.scatter(x[anomaly_peak_index], anomaly_density[anomaly_peak_index], color='orange', label='Anomaly Peak')
     plt.title('Error Distributions with Optimal Threshold Between Spikes')

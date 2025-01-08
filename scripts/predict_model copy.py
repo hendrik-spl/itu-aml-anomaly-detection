@@ -57,60 +57,7 @@ def main(run_id):
 
     if model is None or config is None:
         raise FileNotFoundError(f"Check failed: Model with name {run_name} not found")
-    """
-    evaluate_autoencoder(
-        autoencoder=model,
-        validation_generator=validation_generator,
-        test_generator=test_generator,
-        config=config
-    )
 
-    evaluate_autoencoder_with_threshold_generator(
-        autoencoder=model,
-        test_generator=test_generator,
-        threshold_generator=threshold_generator,
-        validation_generator=validation_generator,
-        config=config
-    )
-    
-    results = evaluate_autoencoder_with_KNN(
-        autoencoder=model,
-        validation_generator=validation_generator,
-        test_generator=test_generator,
-        layer_name='bottleneck',
-        anomaly_percentile=80,
-        k_neighbors=5,
-        config={'comment': 'KNN Evaluation with Validation Threshold'}
-    )
-
-    plot_latent_space(
-        autoencoder=model, 
-        generator=test_generator, 
-        layer_name='bottleneck',
-        generator_type='test'
-    )
-
-    plot_latent_space(
-        autoencoder=model, 
-        generator=validation_generator, 
-        layer_name='bottleneck',
-        generator_type='validation'
-    )
-
-    plot_latent_space(
-        autoencoder=model, 
-        generator=train_generator, 
-        layer_name='bottleneck',
-        generator_type='train'
-    )
-
-    plot_combined_latent_space(
-        autoencoder=model,
-        train_generator=train_generator,
-        validation_generator=validation_generator,
-        test_generator=test_generator,
-        layer_name='bottleneck'
-    )"""
     image_path = '../data/screw/test/scratch_head/000.png'
 
     predict_anomaly(

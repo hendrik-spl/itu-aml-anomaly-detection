@@ -1,5 +1,6 @@
 from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing import image
 
 import numpy as np
 from sklearn.metrics import (
@@ -242,7 +243,8 @@ def get_dist_based_threshold_between_spikes(
     wandb, 
     config, 
     loss_function, 
-    num_steps=1000
+    num_steps=1000,
+    task=None
 ):
     """
     Calculate the optimal threshold using the minimum between the spikes of normal and anomaly distributions.
@@ -288,15 +290,16 @@ def get_dist_based_threshold_between_spikes(
         print(f"Warning - Assumption violated: Anomaly peak is not to the right of normal peak.")
         print("Triggering `evaluate_autoencoder` as fallback evaluation.")
 
-        plot_smooth_error_distribution(
-        x=x,
-        normal_density=normal_density,
-        anomaly_density=anomaly_density,
-        threshold=None,  # No threshold if assumption fails
-        normal_peak_index=normal_peak_index,
-        anomaly_peak_index=anomaly_peak_index,
-        wandb=wandb
-    )
+        if task != 'predict':
+            plot_smooth_error_distribution(
+                x=x,
+                normal_density=normal_density,
+                anomaly_density=anomaly_density,
+                threshold=None,  # No threshold if assumption fails
+                normal_peak_index=normal_peak_index,
+                anomaly_peak_index=anomaly_peak_index,
+                wandb=wandb
+            )
         
         evaluate_autoencoder(
             autoencoder=autoencoder,
@@ -316,15 +319,16 @@ def get_dist_based_threshold_between_spikes(
         threshold = x_between_spikes[optimal_threshold_index]
 
         # Plot smooth distribution with the threshold
-        plot_smooth_error_distribution(
-            x=x,
-            normal_density=normal_density,
-            anomaly_density=anomaly_density,
-            threshold=threshold,
-            normal_peak_index=normal_peak_index,
-            anomaly_peak_index=anomaly_peak_index,
-            wandb=wandb
-        )
+        if task != 'predict':
+            plot_smooth_error_distribution(
+                x=x,
+                normal_density=normal_density,
+                anomaly_density=anomaly_density,
+                threshold=threshold,
+                normal_peak_index=normal_peak_index,
+                anomaly_peak_index=anomaly_peak_index,
+                wandb=wandb
+            )
 
         print(f"Optimal Threshold Found: {threshold:.4f}")
         return threshold
@@ -465,7 +469,7 @@ def evaluate_autoencoder_with_KNN(autoencoder, validation_generator, test_genera
     Returns:
         dict: Dictionary containing evaluation metrics and plots.
     """
-    ## 🟢 **Step 1: Extract Latent Vectors from Validation Set (Normal Only)**
+    ## Step 1: Extract Latent Vectors from Validation Set (Normal Only)
     val_latent_vectors, _ = extract_latent_vectors_and_labels(autoencoder, validation_generator, layer_name)
     
     scaler = StandardScaler()
@@ -476,10 +480,10 @@ def evaluate_autoencoder_with_KNN(autoencoder, validation_generator, test_genera
     
     # Set threshold based on validation data
     threshold = np.percentile(val_knn_distances, anomaly_percentile)
-    print(f"✅ Threshold set from validation set: {threshold:.4f}")
+    print(f"Threshold set from validation set: {threshold:.4f}")
     if wandb: wandb.log({"kNN_threshold": threshold})
     
-    ## 🟡 **Step 2: Extract Latent Vectors from Test Set (Normal + Anomaly)**
+    ##Step 2: Extract Latent Vectors from Test Set (Normal + Anomaly)
     test_latent_vectors, test_labels = extract_latent_vectors_and_labels(autoencoder, test_generator, layer_name)
     test_latent_vectors_normalized = scaler.transform(test_latent_vectors)
     
@@ -496,7 +500,7 @@ def evaluate_autoencoder_with_KNN(autoencoder, validation_generator, test_genera
     else:
         raise ValueError("Ensure that the test generator contains a 'good' class for normal samples.")
     
-    ## 📊 **Step 3: Evaluate Performance**
+    ##Step 3: Evaluate Performance**
     accuracy = accuracy_score(true_labels, predictions)
     f1 = f1_score(true_labels, predictions)
     auc_score = roc_auc_score(true_labels, test_knn_distances)
@@ -504,13 +508,13 @@ def evaluate_autoencoder_with_KNN(autoencoder, validation_generator, test_genera
     pr_auc = auc(recall, precision)
     cm = confusion_matrix(true_labels, predictions)
     
-    print(f"✅ Accuracy: {accuracy:.4f}")
-    print(f"✅ F1 Score: {f1:.4f}")
-    print(f"✅ AUC: {auc_score:.4f}")
-    print(f"✅ PR-AUC: {pr_auc:.4f}")
-    print("✅ Confusion Matrix:\n", cm)
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"F1 Score: {f1:.4f}")
+    print(f"AUC: {auc_score:.4f}")
+    print(f"PR-AUC: {pr_auc:.4f}")
+    print("Confusion Matrix:\n", cm)
     
-    ## 📈 **Step 4: Visualization**
+    ##Step 4: Visualization
     # Plot Confusion Matrix
     plot_confusion_matrix(
         confusion_matrix=cm, 
@@ -543,8 +547,13 @@ def evaluate_autoencoder_with_KNN(autoencoder, validation_generator, test_genera
 
 
 
+from tensorflow.keras.preprocessing import image
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import NearestNeighbors
+import numpy as np
+from tensorflow.keras.models import Model
+from typing import Literal
 
-### Make predictions   
 def predict_anomaly(
     image_path: str,
     evaluation_method: Literal['autoencoder', 'threshold_generator', 'KNN'],
@@ -572,16 +581,15 @@ def predict_anomaly(
         str: Prediction result - "Anomaly" or "Normal".
     """
     # Step 1: Load and preprocess the image
-    img = image.load_img(image_path, target_size=(config['image_size'], config['image_size']))
+    img = image.load_img(image_path, target_size=(256, 256))
     img_array = image.img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0) / 255.0  # Normalize to [0, 1]
     
     if evaluation_method == 'autoencoder':
-        print("Using Autoencoder Evaluation Method...")
+        print("\nUsing Autoencoder Evaluation Method...")
         reconstruction = autoencoder.predict(img_array, verbose=0)
         error = np.mean(np.square(img_array - reconstruction))
         
-        # Calculate threshold from validation set
         validation_errors, _ = get_errors_and_labels(
             autoencoder=autoencoder,
             generator=validation_generator,
@@ -593,7 +601,7 @@ def predict_anomaly(
         print(f"Reconstruction Error: {error:.4f}, Threshold: {threshold:.4f}")
     
     elif evaluation_method == 'threshold_generator':
-        print("Using Threshold Generator Evaluation Method...")
+        print("\nUsing Threshold Generator Evaluation Method...")
         threshold = get_dist_based_threshold_between_spikes(
             autoencoder=autoencoder,
             threshold_generator=threshold_generator,
@@ -601,7 +609,8 @@ def predict_anomaly(
             test_generator=test_generator,
             config=config,
             wandb=wandb,
-            loss_function=config['loss']
+            loss_function=config['loss'],
+            task='predict'
         )
         
         reconstruction = autoencoder.predict(img_array, verbose=0)
@@ -611,40 +620,26 @@ def predict_anomaly(
         print(f"Reconstruction Error: {error:.4f}, Threshold: {threshold:.4f}")
     
     elif evaluation_method == 'KNN':
-        print("Using KNN Evaluation Method...")
-        encoder = Model(inputs=autoencoder.input, outputs=autoencoder.get_layer(config['bottleneck_layer']).output)
+        print("\nUsing KNN Evaluation Method...")
+        encoder = Model(inputs=autoencoder.input, outputs=autoencoder.get_layer('bottleneck').output)
         latent = encoder.predict(img_array, verbose=0)
         latent = latent.reshape(1, -1)
         
-        # Fit KNN on the test dataset
-        latent_vectors = []
-        for i in range(len(test_generator)):
-            batch_images, _ = next(test_generator)
-            batch_latent = encoder.predict(batch_images, verbose=0)
-            latent_vectors.append(batch_latent.reshape(batch_latent.shape[0], -1))
+        # Extract latent vectors from the validation generator
+        val_latent_vectors, _ = extract_latent_vectors_and_labels(autoencoder, validation_generator, 'bottleneck')
+        scaler = StandardScaler()
+        val_latent_vectors_normalized = scaler.fit_transform(val_latent_vectors)
         
-        latent_vectors = np.concatenate(latent_vectors)
-        knn = NearestNeighbors(n_neighbors=config['n_neighbors'])
-        knn.fit(latent_vectors)
-        
-        distances, _ = knn.kneighbors(latent)
+        knn = NearestNeighbors(n_neighbors=5, metric='euclidean')
+        knn.fit(val_latent_vectors_normalized)
+        latent_normalized = scaler.transform(latent)
+        distances, _ = knn.kneighbors(latent_normalized)
         avg_knn_distance = np.mean(distances)
         
-        reconstruction = autoencoder.predict(img_array, verbose=0)
-        reconstruction_error = np.mean(np.square(img_array - reconstruction))
+        threshold = np.percentile(calculate_knn_distances(val_latent_vectors_normalized, n_neighbors=5), 80)
         
-        # Normalize both metrics
-        errors = np.concatenate([reconstruction_errors for _, reconstruction_errors in get_errors_and_labels(autoencoder, test_generator, config['loss'])])
-        avg_knn_distances = np.concatenate([np.mean(knn.kneighbors(batch_latent.reshape(batch_latent.shape[0], -1))[0], axis=1) for batch_latent in latent_vectors])
-        
-        reconstruction_error = (reconstruction_error - np.min(errors)) / (np.max(errors) - np.min(errors))
-        avg_knn_distance = (avg_knn_distance - np.min(avg_knn_distances)) / (np.max(avg_knn_distances) - np.min(avg_knn_distances))
-        
-        anomaly_score = reconstruction_error + avg_knn_distance
-        threshold = np.percentile(anomaly_score, config['anomaly_percentile'])
-        
-        prediction = "Anomaly" if anomaly_score > threshold else "Normal"
-        print(f"Anomaly Score: {anomaly_score:.4f}, Threshold: {threshold:.4f}")
+        prediction = "Anomaly" if avg_knn_distance > threshold else "Normal"
+        print(f"kNN Distance: {avg_knn_distance:.4f}, Threshold: {threshold:.4f}")
     
     else:
         raise ValueError("Invalid evaluation method. Choose from 'autoencoder', 'threshold_generator', or 'KNN'.")

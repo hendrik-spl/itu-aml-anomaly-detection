@@ -67,7 +67,7 @@ def main(config):
 
     # Load the best model (based on validation loss)
     pretrained_model_path = f"../models/models/checkpoints/comic-gorge-110.keras"
-    autoencoder = tf.keras.models.load_model(pretrained_model_path)
+    autoencoder = tf.keras.models.load_model(pretrained_model_path, compile=False)
 
     # Unfreeze all layers
     for layer in autoencoder.layers:

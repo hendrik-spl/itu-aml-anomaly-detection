@@ -33,7 +33,7 @@ config = {
     "threshold_percentage": 80,
     # Taken as given
     "data_class" : "screw", # available options: "screw", "metal_nut" and more
-    "epochs" : 1,
+    "epochs" : 200,
     "latent_dim" : 512,
     "optimizer" : 'adam',
     "downsampling": 'maxpooling',
@@ -66,7 +66,7 @@ def main(config):
         )
 
     # Load the best model (based on validation loss)
-    pretrained_model_path = f"models/checkpoints/comic-gorge-110.keras"
+    pretrained_model_path = f"../models/models/checkpoints/comic-gorge-110.keras"
     autoencoder = tf.keras.models.load_model(pretrained_model_path)
 
     # Log Model Size

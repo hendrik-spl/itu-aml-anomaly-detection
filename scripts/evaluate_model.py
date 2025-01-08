@@ -57,7 +57,7 @@ def main(run_id):
 
     if model is None or config is None:
         raise FileNotFoundError(f"Check failed: Model with name {run_name} not found")
-    """
+
     evaluate_autoencoder(
         autoencoder=model,
         validation_generator=validation_generator,
@@ -110,38 +110,8 @@ def main(run_id):
         validation_generator=validation_generator,
         test_generator=test_generator,
         layer_name='bottleneck'
-    )"""
-    image_path = '../data/screw/test/scratch_head/000.png'
-
-    predict_anomaly(
-    image_path=image_path,
-    evaluation_method='autoencoder',  # Options: 'autoencoder', 'threshold_generator', 'KNN'
-    autoencoder=model,
-    validation_generator=validation_generator,
-    test_generator=test_generator,
-    threshold_generator=threshold_generator,
-    config=config
     )
 
-    predict_anomaly(
-    image_path=image_path,
-    evaluation_method='threshold_generator',  # Options: 'autoencoder', 'threshold_generator', 'KNN'
-    autoencoder=model,
-    validation_generator=validation_generator,
-    test_generator=test_generator,
-    threshold_generator=threshold_generator,
-    config=config
-    )
-
-    predict_anomaly(
-    image_path=image_path,
-    evaluation_method='KNN',  # Options: 'autoencoder', 'threshold_generator', 'KNN'
-    autoencoder=model,
-    validation_generator=validation_generator,
-    test_generator=test_generator,
-    threshold_generator=threshold_generator,
-    config=config
-    )
 
 if __name__ == "__main__":
     main(run_id)

@@ -2,8 +2,18 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 import numpy as np
-from sklearn.metrics import confusion_matrix, f1_score
+from sklearn.metrics import (
+    confusion_matrix, 
+    classification_report, 
+    f1_score, 
+    roc_auc_score, 
+    precision_recall_curve, 
+    auc, 
+    accuracy_score, 
+    roc_curve
+)
 from typing import Tuple
+from sklearn.neighbors import NearestNeighbors
 from scipy.stats import gaussian_kde
 
 from utils.loss import calculate_error
@@ -356,3 +366,114 @@ def get_dist_based_threshold(autoencoder, threshold_generator, loss_function, nu
     threshold = x_between_spikes[optimal_threshold_index]
 
     return threshold
+
+
+### Evaluate with KNN
+def evaluate_with_KNN(autoencoder, generator, layer_name='bottleneck', n_neighbors=5, anomaly_percentile=95, config=None, wandb=None):
+    """
+    Evaluate an Autoencoder for anomaly detection using KNN in the latent space.
+    
+    Parameters:
+        autoencoder (Model): Trained autoencoder model.
+        generator (Iterator): Data generator for test data.
+        layer_name (str): Name of the bottleneck layer in the autoencoder.
+        n_neighbors (int): Number of neighbors for KNN.
+        anomaly_percentile (float): Percentile for anomaly thresholding.
+        config (dict): Configuration dictionary for labeling and comments.
+        wandb: Weights & Biases logger instance (optional).
+        
+    Returns:
+        dict: Dictionary containing evaluation metrics and plots.
+    """
+    # Extract latent representations and reconstruction errors
+    encoder = Model(inputs=autoencoder.input, outputs=autoencoder.get_layer(layer_name).output)
+    latent_vectors = []
+    labels = []
+    reconstruction_errors = []
+    
+    steps = len(generator)
+    for i in range(steps):
+        batch_images, batch_labels = next(generator)
+        latent = encoder.predict(batch_images, verbose=0)
+        reconstructions = autoencoder.predict(batch_images, verbose=0)
+        
+        latent_vectors.append(latent.reshape(latent.shape[0], -1))
+        labels.append(np.argmax(batch_labels, axis=1))
+        batch_errors = np.mean(np.square(batch_images - reconstructions), axis=(1, 2, 3))
+        reconstruction_errors.extend(batch_errors)
+    
+    latent_vectors = np.concatenate(latent_vectors)
+    labels = np.concatenate(labels)
+    reconstruction_errors = np.array(reconstruction_errors)
+    
+    # Fit KNN on latent vectors
+    knn = NearestNeighbors(n_neighbors=n_neighbors)
+    knn.fit(latent_vectors)
+    distances, _ = knn.kneighbors(latent_vectors)
+    avg_knn_distances = distances.mean(axis=1)
+    
+    # Normalize scores and combine
+    reconstruction_errors = (reconstruction_errors - np.min(reconstruction_errors)) / (np.max(reconstruction_errors) - np.min(reconstruction_errors))
+    avg_knn_distances = (avg_knn_distances - np.min(avg_knn_distances)) / (np.max(avg_knn_distances) - np.min(avg_knn_distances))
+    anomaly_scores = reconstruction_errors + avg_knn_distances
+    
+    # Determine anomaly threshold based on percentile
+    threshold = np.percentile(anomaly_scores, anomaly_percentile)
+    predictions = (anomaly_scores > threshold).astype(int)
+    
+    # Map ground-truth labels
+    if 'good' in generator.class_indices:
+        true_labels = (labels != generator.class_indices['good']).astype(int)
+    else:
+        raise ValueError("Ensure that the generator contains a 'good' class for normal samples.")
+    
+    # Evaluation metrics
+    accuracy = accuracy_score(true_labels, predictions)
+    cm = confusion_matrix(true_labels, predictions)
+    f1 = f1_score(true_labels, predictions)
+    auc_score = roc_auc_score(true_labels, anomaly_scores)
+    precision, recall, _ = precision_recall_curve(true_labels, anomaly_scores)
+    pr_auc = auc(recall, precision)
+    fpr, tpr, _ = roc_curve(true_labels, anomaly_scores)
+    
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"F1 Score: {f1:.4f}")
+    print(f"AUC: {auc_score:.4f}")
+    print(f"PR-AUC: {pr_auc:.4f}")
+    print("Confusion Matrix:\n", cm)
+    
+    # Call External Plotting Functions
+    if config is None:
+        config = {'comment': 'Default'}
+    
+    # Plot Confusion Matrix
+    plot_confusion_matrix(
+        confusion_matrix=cm, 
+        labels=['Normal', 'Anomaly'], 
+        title=f"Confusion Matrix - Test Set - {config['comment']}",
+        wandb=wandb
+    )
+    
+    # Plot ROC Curve
+    plot_roc_curve(
+        true_labels=true_labels, 
+        test_errors=anomaly_scores, 
+        title=f"ROC Curve - Test Set - {config['comment']}", 
+        wandb=wandb
+    )
+    
+    # Plot Histogram with Threshold
+    normal_errors = anomaly_scores[true_labels == 0]
+    anomalous_errors = anomaly_scores[true_labels == 1]
+    
+    plot_double_histogram_with_threshold(
+        normal_errors,
+        anomalous_errors,
+        threshold,
+        f"Reconstruction Error Distribution - Test Set - {config['comment']}",
+        "Reconstruction Error",
+        "Frequency",
+        f"Threshold: {threshold:.4f}",
+        wandb
+    )
+    

@@ -13,6 +13,7 @@ from utils.helper import set_seed
 from utils.data import load_data_with_test_split
 from utils.latent_space import plot_latent_space, plot_combined_latent_space
 from utils.evaluation import evaluate_autoencoder, evaluate_autoencoder_with_threshold_generator, evaluate_autoencoder_with_KNN, predict_anomaly
+from utils.plots import plot_feature_maps
 
 # Here we parse the arguments to get the run_id of the model we want to evaluate
 def parse_args():
@@ -58,6 +59,8 @@ def main(run_id):
     if model is None or config is None:
         raise FileNotFoundError(f"Check failed: Model with name {run_name} not found")
 
+    model.summary()
+    
     evaluate_autoencoder(
         autoencoder=model,
         validation_generator=validation_generator,
@@ -112,6 +115,12 @@ def main(run_id):
         layer_name='bottleneck'
     )
 
-
+    plot_feature_maps(
+        autoencoder=model,
+        generator=test_generator,
+        img_index=5,
+        feature_map_index=0
+    )
+    
 if __name__ == "__main__":
     main(run_id)

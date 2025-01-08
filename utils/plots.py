@@ -64,43 +64,72 @@ def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator,
 
     plt.show()
 
-def plot_feature_map(autoencoder, layer_name, input_image, wandb):
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow.keras.models import Model
+
+def plot_feature_maps(autoencoder, generator, img_index=0, feature_map_index=0, wandb=None):
     """
-    Visualize the first 10 feature maps for a specific layer of the autoencoder using original colors.
+    Visualize one feature map from each Conv2D layer of the autoencoder using a single input image.
     
     Args:
         autoencoder (Model): The autoencoder model.
-        layer_name (str): Name of the layer to visualize feature maps.
-        input_image (numpy.ndarray): Input image to generate feature maps.
+        generator (Iterator): Test data generator.
+        img_index (int): Index of the image in the generator.
+        feature_map_index (int): Index of the feature map to visualize from each layer.
+        wandb: Weights & Biases for logging (optional).
     """
+    # Find all Conv2D layers in the model
+    conv_layers = [layer.name for layer in autoencoder.layers if 'Conv2D' in layer.name]
+    if not conv_layers:
+        raise ValueError("No layers containing 'Conv2D' found in the model.")
+    
+    print(f"Found Conv2D layers: {conv_layers}")
 
-    # Create a model that outputs feature maps for the specified layer
-    layer_output = autoencoder.get_layer(name=layer_name).output
-    feature_map_model = Model(inputs=autoencoder.input, outputs=layer_output)
+    # Determine batch and image index within the batch
+    batch_size = generator.batch_size
+    batch_idx = img_index // batch_size
+    img_idx_within_batch = img_index % batch_size
 
-    # Get feature maps
-    feature_map = feature_map_model.predict(np.expand_dims(input_image, axis=0))
+    # Fetch the specific batch
+    for i, (images, _) in enumerate(generator):
+        if i == batch_idx:
+            sample_image = images[img_idx_within_batch]
+            break
+    else:
+        raise ValueError("Image index is out of range of the generator.")
 
-    # Normalize feature map values to [0, 1] for proper display
-    feature_map -= feature_map.min()
-    feature_map /= feature_map.max()
+    # Loop through each Conv2D layer and plot one feature map
+    for layer_name in conv_layers:
+        # Create a model that outputs feature maps for the current layer
+        layer_output = autoencoder.get_layer(name=layer_name).output
+        feature_map_model = Model(inputs=autoencoder.input, outputs=layer_output)
 
-    # Limit to the first 10 feature maps
-    num_filters = min(1, feature_map.shape[-1])
+        # Get feature maps
+        feature_map = feature_map_model.predict(np.expand_dims(sample_image, axis=0))
 
-    # Plot feature maps
-    plt.figure(figsize=(15, 5))
-    plt.suptitle(f"Feature Maps for Layer: {layer_name}", fontsize=12)
+        # Ensure the selected feature map index is valid
+        if feature_map_index >= feature_map.shape[-1]:
+            print(f"Skipping {layer_name}: feature_map_index {feature_map_index} exceeds available maps ({feature_map.shape[-1]}).")
+            continue
 
-    for i in range(num_filters):
-        plt.subplot(2, num_filters, i + 1)
-        plt.imshow(feature_map[0, :, :, i])  # Display original colors
+        # Normalize the selected feature map
+        selected_map = feature_map[0, :, :, feature_map_index]
+        selected_map -= selected_map.min()
+        selected_map /= selected_map.max()
+
+        # Plot the selected feature map
+        plt.figure(figsize=(5, 5))
+        plt.title(f"Feature Map {feature_map_index} from Layer: {layer_name}")
+        plt.imshow(selected_map, cmap='viridis')
         plt.axis('off')
+        plt.tight_layout()
 
-    plt.subplots_adjust(top=0.85)  # Add space at the top of the figure
-    plt.tight_layout()
-    if wandb: wandb.log({f"Feature map{layer_name}": wandb.Image(plt)})
-    plt.show()
+        if wandb: 
+            wandb.log({f"Feature Map {layer_name}_{feature_map_index}": wandb.Image(plt)})
+        
+        plt.show()
+
 
 def plot_images_with_info(autoencoder: Model, test_generator: ImageDataGenerator,threshold_generator: ImageDataGenerator, loss_function: str, n_images: int, title: str, wandb = None) -> None:
     """

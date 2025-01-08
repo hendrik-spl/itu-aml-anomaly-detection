@@ -69,6 +69,10 @@ def main(config):
     pretrained_model_path = f"../models/models/checkpoints/comic-gorge-110.keras"
     autoencoder = tf.keras.models.load_model(pretrained_model_path)
 
+    # Unfreeze all layers
+    for layer in autoencoder.layers:
+        layer.trainable = True
+
     # Log Model Size
     wandb.log({"model_size": autoencoder.count_params()})
 

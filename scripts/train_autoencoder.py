@@ -8,7 +8,7 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 import wandb
 from wandb.integration.keras import WandbMetricsLogger, WandbModelCheckpoint
 
-parent_dir = os.path.abspath(os.path.join(os.getcwd(), '../..'))
+parent_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 

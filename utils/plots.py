@@ -8,16 +8,6 @@ import seaborn as sns
 from utils.evaluation import get_dist_based_threshold, calculate_error
 
 def plot_history(comment, history, wandb = None):
-    """
-    Plot training history.
-    
-    Parameters:
-        comment (str): Comment to display in the plot.
-        history (tf.keras.callbacks.History): Training history.
-
-    Returns:
-        None
-    """
     plt.figure(figsize=(14, 4))
     plt.suptitle(comment)
 
@@ -37,14 +27,6 @@ def plot_history(comment, history, wandb = None):
     if wandb: wandb.log({"last_improvement_epoch": np.argmin(history.history["val_loss"])+1})
 
 def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator, n_images: int, title, wandb = None) -> None:
-    """
-    Plot original and reconstructed images from the autoencoder.
-
-    Parameters:
-    autoencoder (Model): The autoencoder model.
-    test_generator (ImageDataGenerator): The test data generator.
-    n_images (int): The number of images to plot.
-    """
     test_images, _ = next(test_generator)
     reconstructions = autoencoder.predict(test_images)
 

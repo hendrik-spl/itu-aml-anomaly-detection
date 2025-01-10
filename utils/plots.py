@@ -64,34 +64,19 @@ def plot_reconstructions(autoencoder: Model, test_generator: ImageDataGenerator,
 
     plt.show()
 
-import numpy as np
-import matplotlib.pyplot as plt
-from tensorflow.keras.models import Model
 
 def plot_feature_maps(autoencoder, generator, img_index=0, feature_map_index=0, wandb=None):
-    """
-    Visualize one feature map from each Conv2D layer of the autoencoder using a single input image.
-    
-    Args:
-        autoencoder (Model): The autoencoder model.
-        generator (Iterator): Test data generator.
-        img_index (int): Index of the image in the generator.
-        feature_map_index (int): Index of the feature map to visualize from each layer.
-        wandb: Weights & Biases for logging (optional).
-    """
-    # Find all Conv2D layers in the model
+
     conv_layers = [layer.name for layer in autoencoder.layers if 'Conv2D' in layer.name]
     if not conv_layers:
         raise ValueError("No layers containing 'Conv2D' found in the model.")
     
     print(f"Found Conv2D layers: {conv_layers}")
 
-    # Determine batch and image index within the batch
     batch_size = generator.batch_size
     batch_idx = img_index // batch_size
     img_idx_within_batch = img_index % batch_size
 
-    # Fetch the specific batch
     for i, (images, _) in enumerate(generator):
         if i == batch_idx:
             sample_image = images[img_idx_within_batch]
@@ -101,24 +86,19 @@ def plot_feature_maps(autoencoder, generator, img_index=0, feature_map_index=0, 
 
     # Loop through each Conv2D layer and plot one feature map
     for layer_name in conv_layers:
-        # Create a model that outputs feature maps for the current layer
         layer_output = autoencoder.get_layer(name=layer_name).output
         feature_map_model = Model(inputs=autoencoder.input, outputs=layer_output)
 
-        # Get feature maps
         feature_map = feature_map_model.predict(np.expand_dims(sample_image, axis=0))
 
-        # Ensure the selected feature map index is valid
         if feature_map_index >= feature_map.shape[-1]:
             print(f"Skipping {layer_name}: feature_map_index {feature_map_index} exceeds available maps ({feature_map.shape[-1]}).")
             continue
 
-        # Normalize the selected feature map
         selected_map = feature_map[0, :, :, feature_map_index]
         selected_map -= selected_map.min()
         selected_map /= selected_map.max()
 
-        # Plot the selected feature map
         plt.figure(figsize=(5, 5))
         plt.title(f"Feature Map {feature_map_index} from Layer: {layer_name}")
         plt.imshow(selected_map, cmap='viridis')
@@ -132,17 +112,7 @@ def plot_feature_maps(autoencoder, generator, img_index=0, feature_map_index=0, 
 
 
 def plot_images_with_info(autoencoder: Model, test_generator: ImageDataGenerator,threshold_generator: ImageDataGenerator, loss_function: str, n_images: int, title: str, wandb = None) -> None:
-    """
-    Plot images from the test generator along with their labels, reconstruction error, and anomaly status.
 
-    Parameters:
-    autoencoder (Model): The autoencoder model.
-    test_generator (ImageDataGenerator): The test data generator.
-    loss_function (str): The loss function to use ('mae', 'mse', 'ssim').
-    threshold (float): The threshold for anomaly detection based on reconstruction error.
-    n_images (int): The number of images to plot.
-    title (str): The title of the plot.
-    """
     threshold = get_dist_based_threshold(
         autoencoder=autoencoder,
         threshold_generator=threshold_generator,
@@ -181,17 +151,6 @@ def plot_images_with_info(autoencoder: Model, test_generator: ImageDataGenerator
     plt.show()
 
 def plot_single_histogram_with_threshold(errors, threshold: float, title: str, xlabel: str, ylabel: str, threshold_label: str) -> None:
-    """
-    Plot a single histogram with a threshold line.
-
-    Parameters:
-    errors (list[float]): The errors to plot.
-    threshold (float): The threshold value.
-    title (str): The title of the plot.
-    xlabel (str): The label for the x-axis.
-    ylabel (str): The label for the y-axis.
-    threshold_label (str): The label for the threshold line.
-    """
     plt.hist(errors, bins=50, alpha=0.5)
     plt.axvline(threshold, color='r', linestyle='--', label=threshold_label)
     plt.legend()

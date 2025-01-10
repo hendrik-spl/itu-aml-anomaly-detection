@@ -18,17 +18,7 @@ def return_loss(loss):
         raise ValueError(f"Unknown loss function: {loss}")
 
 def calculate_error(images: np.ndarray, reconstructions: np.ndarray, loss_function: str):
-    """
-    Calculate error between original images and their reconstructions.
 
-    Parameters:
-    images (np.ndarray): The original images.
-    reconstructions (np.ndarray): The reconstructed images.
-    loss_function (str): The loss function to use ('mae', 'mse', 'ssim').
-
-    Returns:
-    List[float]: A list of errors for each image in the batch.
-    """
     if loss_function == 'mae':
         return np.mean(np.abs(reconstructions - images), axis=(1, 2, 3)).tolist()
     elif loss_function == 'mse':

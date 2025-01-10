@@ -47,16 +47,7 @@ def get_model(config):
         raise ValueError(f"Model name '{config.model_name}' not recognized.")
 
 def mobilenet_autoencoder(input_shape, optimizer, latent_dim, loss, batch_norm, decoder_type, num_blocks):
-    """
-    Parameters:
-        input_shape (tuple): Shape of the input images (height, width, channels).
-        optimizer: Optimizer used for training.
-        latent_dim (int): Dimension of the latent space.
-        loss (str): Loss used to train the autoencoder. Options: 'mse', 'ssim', etc.
-        batch_norm (bool): Whether to apply batch normalization.
-        decoder_type (str): 'upsampling' or 'transposed' for decoder layers.
-        num_blocks (int): Number of convolutional blocks in both the encoder and decoder.
-    """
+
     filters = [32 * (2 ** i) for i in range(min(num_blocks, 5))] + [512] * (num_blocks - 5)  # Dynamically set filters based on num_blocks and cap at 512
     
     # Encoder
@@ -96,16 +87,7 @@ def mobilenet_autoencoder(input_shape, optimizer, latent_dim, loss, batch_norm, 
     return autoencoder
 
 def autoencoder(input_shape, optimizer, latent_dim, loss, dropout_value, batch_norm, decoder_type, num_blocks):
-    """
-    Parameters:
-        input_shape (tuple): Shape of the input images (height, width, channels).
-        optimizer: Optimizer used for training.
-        latent_dim (int): Dimension of the latent space.
-        loss (str): Loss used to train the autoencoder. Options: 'mse', 'ssim', etc.
-        batch_norm (bool): Whether to apply batch normalization.
-        decoder_type (str): 'upsampling' or 'transposed' for decoder layers.
-        num_blocks (int): Number of convolutional blocks in both the encoder and decoder.
-    """
+
     filters = [32 * (2 ** i) for i in range(min(num_blocks, 5))] + [512] * (num_blocks - 5)  # Dynamically set filters based on num_blocks and cap at 512
 
     # Encoder
@@ -147,11 +129,7 @@ def autoencoder(input_shape, optimizer, latent_dim, loss, dropout_value, batch_n
     return autoencoder
 
 def vanilla_autoencoder(input_shape, optimizer, latent_dim, loss, batch_norm):
-    """
-        input_shape (tuple): Shape of the input images (height, width, channels).
-        latent_dim (int): Dimension of the latent space.
-        loss (str): Loss used to train the autoencoder. Options: 'mse', 'ssim', etc.
-    """
+
     # Encoder
     input_img = Input(shape=input_shape)
 

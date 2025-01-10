@@ -3,20 +3,8 @@ import numpy as np
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 def load_data_with_test_split(category: str, batch_size: int, test_split: float = 0.5, rotation_range: int = 0):
-    """
-    Generates data generators for training, validation, testing, and threshold datasets.
 
-    Args:
-        category (str): The category of the dataset to be used.
-        batch_size (int): The size of the batches of data.
-        test_split (float): Fraction of the test set to use for validation (threshold set).
-
-    Returns:
-        Tuple[DirectoryIterator, DirectoryIterator, DirectoryIterator, DirectoryIterator]: 
-        A tuple containing the training data generator, validation data generator, 
-        test data generator, and threshold (validation of test set) data generator.
-    """
-    # Check if the first path exists, otherwise use the second path
+    #check if the first path exists, otherwise use the second path
     data_dir = f'data/{category}'
     if not os.path.exists(data_dir):
         data_dir = f'../data/{category}'
@@ -25,23 +13,23 @@ def load_data_with_test_split(category: str, batch_size: int, test_split: float 
     train_dir = f'{data_dir}/train'
     test_dir = f'{data_dir}/test'
 
-    # Training generator with data augmentation
+    #training generator with data augmentation
     datagen_train = ImageDataGenerator(
         rescale=1./255, 
         validation_split=0.2,
         rotation_range=rotation_range,
     )
 
-    # Validation generator without data augmentation
+    # validation generator without data augmentation
     datagen_val = ImageDataGenerator(
         rescale=1./255,
         validation_split=0.2
     )
 
-    # Test and threshold (validation of test set) generators
+    # test and threshold (validation of test set) generators
     datagen_test = ImageDataGenerator(
         rescale=1./255,
-        validation_split=test_split  # Split test set into test and threshold sets
+        validation_split=test_split  
     )
 
     train_generator = datagen_train.flow_from_directory(

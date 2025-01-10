@@ -18,7 +18,7 @@ from utils.plots import plot_feature_maps
 # Here we parse the arguments to get the run_id of the model we want to evaluate
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate model")
-    parser.add_argument("--run_id", type=str, required=True, help="Name of the wandb run of the model to evaluate")
+    parser.add_argument("--run_id", type=str, required=True, help="ID of the wandb run of the model to evaluate")
     return parser.parse_args()
 
 args = parse_args()
@@ -35,7 +35,7 @@ def get_wandb_data(model_name):
         raise FileNotFoundError(f"Model wandb logs with name {model_name} not found. Error: {e}")
 
 def get_model(model_name):
-    model_path = f"../models/models/checkpoints/{model_name}.keras"
+    model_path = f"../models/checkpoints/{model_name}.keras"
 
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model file with name {model_name} not found at path: {model_path}")

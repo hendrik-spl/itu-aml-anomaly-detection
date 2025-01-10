@@ -23,7 +23,7 @@ wandb_project = "ablation-study"
 wandb_tags = [
     "autoencoder",
     "reproducible",
-    "test" # remove this tage when running the actual training
+    # "test" # remove this tage when running the actual training
 ] 
 
 config = {

@@ -25,6 +25,7 @@ source .venv/bin/activate
 
 ### Set up Weights and Biases
 * Run `wandb login` to initialize your login and add your API key when prompted.
+* If you want the wandb code to execute without issues, please create a project in wandb called `ablation-study`.
 
 ### Example: Run the train_autoencoder.py script
 * To run the `train_autoencoder.py` script located in the `scripts` folder, use the following command:
